@@ -151,10 +151,10 @@ public class Utils {
 	public static TextAppearanceSpan getAmountSpan(Context context, long amount) {
 		return new TextAppearanceSpan(context,
                 amount == 0
-                        ? R.style.TextAppearance_ZeroAmount
-                        : (amount > 0 ? R.style.TextAppearance_PositiveAmount : R.style.TextAppearance_NegativeAmount));
+                        ? R.style.TextAppearance_Financisto_ZeroAmount
+                        : (amount > 0 ? R.style.TextAppearance_Financisto_PositiveAmount : R.style.TextAppearance_Financisto_NegativeAmount));
 	}
-	
+
 	public static int moveCursor(Cursor cursor, String idColumnName, long id) {
         int pos = cursor.getColumnIndexOrThrow(idColumnName);
         if (cursor.moveToFirst()) {

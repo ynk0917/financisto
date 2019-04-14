@@ -1,11 +1,3 @@
-//noinspection GradleCompatible
-repositories {
-    google()
-    jcenter()
-    maven { url "http://repo.commonsware.com.s3.amazonaws.com" }
-    maven { url 'https://jitpack.io' }
-}
-
 apply plugin: 'com.android.application'
 
 android {

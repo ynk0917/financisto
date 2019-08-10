@@ -8,10 +8,9 @@
 
 package ru.orangesoftware.financisto.utils;
 
+import java.util.List;
 import ru.orangesoftware.financisto.model.Total;
 import ru.orangesoftware.financisto.model.TransactionInfo;
-
-import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -20,8 +19,9 @@ import java.util.List;
  */
 public class TransactionList {
 
-    public final List<TransactionInfo> transactions;
     public final Total[] totals;
+
+    public final List<TransactionInfo> transactions;
 
     public TransactionList(List<TransactionInfo> transactions, Total[] totals) {
         this.transactions = transactions;

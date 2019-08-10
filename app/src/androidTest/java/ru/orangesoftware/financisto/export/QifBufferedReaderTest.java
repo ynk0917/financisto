@@ -9,9 +9,11 @@
 package ru.orangesoftware.financisto.export;
 
 import android.test.AndroidTestCase;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import ru.orangesoftware.financisto.export.qif.QifBufferedReader;
-
-import java.io.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -20,19 +22,21 @@ import java.io.*;
  */
 public class QifBufferedReaderTest extends AndroidTestCase {
 
-    public void test_should_read_qif_file_line_by_line_trimming_each_line_and_skipping_empty_lines() throws IOException {
+    public void test_should_read_qif_file_line_by_line_trimming_each_line_and_skipping_empty_lines()
+            throws IOException {
         String content =
-                "!Account \n"+
-                "\n"+
-                "NMy Cash Account\n"+
-                "\tTCash\n"+
-                "\n"+
-                "^\n"+
-                "\n"+
-                " \t!Type:Cash\n"+
-                "MSome note here... \n"+
-                "^\n";
-        QifBufferedReader r = new QifBufferedReader(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(content.getBytes()), "UTF-8")));
+                "!Account \n" +
+                        "\n" +
+                        "NMy Cash Account\n" +
+                        "\tTCash\n" +
+                        "\n" +
+                        "^\n" +
+                        "\n" +
+                        " \t!Type:Cash\n" +
+                        "MSome note here... \n" +
+                        "^\n";
+        QifBufferedReader r = new QifBufferedReader(
+                new BufferedReader(new InputStreamReader(new ByteArrayInputStream(content.getBytes()), "UTF-8")));
 
         assertEquals("!Account", r.peekLine());
         assertEquals("!Account", r.readLine());

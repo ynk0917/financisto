@@ -16,76 +16,82 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Toast;
+import java.util.List;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.model.MultiChoiceItem;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 import ru.orangesoftware.financisto.utils.PinProtection;
 import ru.orangesoftware.financisto.view.NodeInflater;
 
-import java.util.List;
-
 public abstract class AbstractActivity extends Activity implements ActivityLayoutListener {
 
-	protected DatabaseAdapter db;
+    protected DatabaseAdapter db;
 
-	protected ActivityLayout x;
+    protected ActivityLayout x;
 
-	@Override
-	protected void attachBaseContext(Context base) {
-		super.attachBaseContext(MyPreferences.switchLocale(base));
-	}
-
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-
-		LayoutInflater layoutInflater = (LayoutInflater)getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-		NodeInflater nodeInflater = new NodeInflater(layoutInflater);
-		x = new ActivityLayout(nodeInflater, this);
-		db = new DatabaseAdapter(this);
-		db.open();
-	}
-
-	@Override
-	protected void onPause() {
-		super.onPause();
-        if (shouldLock()) {
-		    PinProtection.lock(this);
+    public static void setVisibility(View v, int visibility) {
+        v.setVisibility(visibility);
+        Object o = v.getTag();
+        if (o instanceof View) {
+            ((View) o).setVisibility(visibility);
         }
-	}
-
-	@Override
-	protected void onResume() {
-		super.onResume();
-        if (shouldLock()) {
-		    PinProtection.unlock(this);
-        }
-	}
-
-    protected boolean shouldLock() {
-        return true;
     }
 
-	@Override
-	public void onClick(View v) {
-		int id = v.getId();
-		onClick(v, id);
-	}
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-	protected abstract void onClick(View v, int id);
+        LayoutInflater layoutInflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        NodeInflater nodeInflater = new NodeInflater(layoutInflater);
+        x = new ActivityLayout(nodeInflater, this);
+        db = new DatabaseAdapter(this);
+        db.open();
+    }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (shouldLock()) {
+            PinProtection.unlock(this);
+        }
+    }
 
-	@Override
-	public void onSelected(int id, List<? extends MultiChoiceItem> items) {
-	}
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (shouldLock()) {
+            PinProtection.lock(this);
+        }
+    }
 
-	@Override
-	public void onSelectedId(int id, long selectedId) {
-	}
+    @Override
+    protected void onDestroy() {
+        db.close();
+        super.onDestroy();
+    }
 
-	@Override
-	public void onSelectedPos(int id, int selectedPos) {
-	}
+    @Override
+    public void onClick(View v) {
+        int id = v.getId();
+        onClick(v, id);
+    }
+
+    @Override
+    public void onSelected(int id, List<? extends MultiChoiceItem> items) {
+    }
+
+    @Override
+    public void onSelectedId(int id, long selectedId) {
+    }
+
+    @Override
+    public void onSelectedPos(int id, int selectedPos) {
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
+    }
 
     protected boolean checkSelected(Object value, int messageResId) {
         if (value == null) {
@@ -96,25 +102,17 @@ public abstract class AbstractActivity extends Activity implements ActivityLayou
     }
 
     protected boolean checkSelectedId(long value, int messageResId) {
-		if (value <= 0) {
-			Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show();
-			return false;
-		}
-		return true;
-	}
+        if (value <= 0) {
+            Toast.makeText(this, messageResId, Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
 
-	public static void setVisibility(View v, int visibility) {
-		v.setVisibility(visibility);
-		Object o = v.getTag();
-		if (o instanceof View) {
-			((View)o).setVisibility(visibility);
-		}
-	}
+    protected abstract void onClick(View v, int id);
 
-	@Override
-	protected void onDestroy() {
-		db.close();
-		super.onDestroy();
-	}
+    protected boolean shouldLock() {
+        return true;
+    }
 
 }

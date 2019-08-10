@@ -15,7 +15,6 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.ListAdapter;
 import android.widget.TextView;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.adapter.BlotterListAdapter;
 import ru.orangesoftware.financisto.blotter.BlotterFilter;
@@ -32,8 +31,23 @@ public class TemplatesListActivity extends BlotterActivity {
     }
 
     @Override
+    protected boolean addTemplateToAddButton() {
+        return false;
+    }
+
+    @Override
     protected void calculateTotals() {
         // do nothing
+    }
+
+    @Override
+    protected ListAdapter createAdapter(Cursor cursor) {
+        return new BlotterListAdapter(this, db, cursor) {
+            @Override
+            protected boolean isShowRunningBalance() {
+                return false;
+            }
+        };
     }
 
     @Override
@@ -58,16 +72,6 @@ public class TemplatesListActivity extends BlotterActivity {
     }
 
     @Override
-    protected ListAdapter createAdapter(Cursor cursor) {
-        return new BlotterListAdapter(this, db, cursor) {
-            @Override
-            protected boolean isShowRunningBalance() {
-                return false;
-            }
-        };
-    }
-
-    @Override
     protected void internalOnCreate(Bundle savedInstanceState) {
         super.internalOnCreate(savedInstanceState);
         // remove filter button and totals
@@ -77,11 +81,6 @@ public class TemplatesListActivity extends BlotterActivity {
         }
         findViewById(R.id.total).setVisibility(View.GONE);
         internalOnCreateTemplates();
-    }
-
-    @Override
-    protected boolean addTemplateToAddButton() {
-        return false;
     }
 
     protected void internalOnCreateTemplates() {

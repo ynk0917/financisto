@@ -1,11 +1,10 @@
 package ru.orangesoftware.financisto.export.qif;
 
-import ru.orangesoftware.financisto.export.CategoryInfo;
-import ru.orangesoftware.financisto.model.Category;
+import static ru.orangesoftware.financisto.export.qif.QifUtils.trimFirstChar;
 
 import java.io.IOException;
-
-import static ru.orangesoftware.financisto.export.qif.QifUtils.trimFirstChar;
+import ru.orangesoftware.financisto.export.CategoryInfo;
+import ru.orangesoftware.financisto.model.Category;
 
 /**
  * Created by IntelliJ IDEA.
@@ -14,13 +13,6 @@ import static ru.orangesoftware.financisto.export.qif.QifUtils.trimFirstChar;
  */
 public class QifCategory extends CategoryInfo {
 
-    public QifCategory() {
-    }
-
-    public QifCategory(String name, boolean income) {
-        super(name, income);
-    }
-
     public static QifCategory fromCategory(Category c) {
         QifCategory qifCategory = new QifCategory();
         qifCategory.name = buildName(c);
@@ -28,10 +20,11 @@ public class QifCategory extends CategoryInfo {
         return qifCategory;
     }
 
-    public void writeTo(QifBufferedWriter qifWriter) throws IOException {
-        qifWriter.write("N").write(name).newLine();
-        qifWriter.write(isIncome ? "I" : "E").newLine();
-        qifWriter.end();
+    public QifCategory() {
+    }
+
+    public QifCategory(String name, boolean income) {
+        super(name, income);
     }
 
     public void readFrom(QifBufferedReader r) throws IOException {
@@ -46,6 +39,12 @@ public class QifCategory extends CategoryInfo {
                 this.isIncome = true;
             }
         }
+    }
+
+    public void writeTo(QifBufferedWriter qifWriter) throws IOException {
+        qifWriter.write("N").write(name).newLine();
+        qifWriter.write(isIncome ? "I" : "E").newLine();
+        qifWriter.end();
     }
 
 }

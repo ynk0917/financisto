@@ -8,6 +8,8 @@
 
 package ru.orangesoftware.financisto.model.rates;
 
+import java.util.Arrays;
+import java.util.List;
 import ru.orangesoftware.financisto.db.AbstractDbTest;
 import ru.orangesoftware.financisto.model.Currency;
 import ru.orangesoftware.financisto.rates.ExchangeRate;
@@ -15,9 +17,6 @@ import ru.orangesoftware.financisto.rates.ExchangeRateProvider;
 import ru.orangesoftware.financisto.test.CurrencyBuilder;
 import ru.orangesoftware.financisto.test.DateTime;
 import ru.orangesoftware.financisto.test.RateBuilder;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -27,7 +26,9 @@ import java.util.List;
 public class ExchangeRateTest extends AbstractDbTest {
 
     Currency c1;
+
     Currency c2;
+
     Currency c3;
 
     @Override
@@ -39,7 +40,8 @@ public class ExchangeRateTest extends AbstractDbTest {
     }
 
     public void test_should_calculate_opposite_rate() {
-        ExchangeRate rate = RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17)).rate(0.78592f).create();
+        ExchangeRate rate = RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17)).rate(0.78592f)
+                .create();
         ExchangeRate flip = rate.flip();
         assertEquals(c2.id, flip.fromCurrencyId);
         assertEquals(c1.id, flip.toCurrencyId);
@@ -52,15 +54,84 @@ public class ExchangeRateTest extends AbstractDbTest {
         assertEquals(rate.rate, rate1.rate, 0.00001f);
     }
 
-    public void test_should_reset_time_to_midnight() {
-        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17).at(12, 23, 45, 456)).rate(0.78592f).create();
-        assertEquals(DateTime.date(2012, 1, 17).atMidnight().asLong(), db.findRate(c1, c2, DateTime.date(2012, 1, 17).asLong()).date);
+    public void test_should_delete_rate() {
+        ExchangeRate r = RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17)).rate(0.78592f)
+                .create();
+        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 18)).rate(0.78635f).create();
+
+        assertEquals(2, db.findRates(c1).size());
+        assertEquals(2, db.findRates(c2).size());
+
+        db.deleteRate(r);
+        assertEquals(1, db.findRates(c1).size());
+        assertEquals(1, db.findRates(c2).size());
+
+        ExchangeRateProvider rates = db.getLatestRates();
+        assertEquals(0.78635f, rates.getRate(c1, c2, DateTime.date(2012, 1, 20).asLong()).rate, 0.00001f);
     }
 
     public void test_should_insert_currency_rate_for_both_sides() {
         RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17)).rate(0.78592f).create();
         assertEquals(0.78592f, db.findRate(c1, c2, DateTime.date(2012, 1, 17).asLong()).rate, 0.00001f);
         assertEquals(1.27239f, db.findRate(c2, c1, DateTime.date(2012, 1, 17).asLong()).rate, 0.00001f);
+    }
+
+    public void test_should_replace_rate() {
+        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17)).rate(0.78592f).create();
+
+        assertEquals(1, db.findRates(c1).size());
+        assertEquals(1, db.findRates(c2).size());
+        assertEquals(0.78592f, db.findRate(c1, c2, DateTime.date(2012, 1, 17).asLong()).rate, 0.00001f);
+        assertEquals(1f / 0.78592f, db.findRate(c2, c1, DateTime.date(2012, 1, 17).asLong()).rate, 0.00001f);
+
+        ExchangeRate rate = RateBuilder.inMemory().from(c1).to(c2).at(DateTime.date(2012, 1, 18)).rate(0.888f)
+                .create();
+        db.replaceRate(rate, DateTime.date(2012, 1, 17).asLong());
+
+        assertEquals(1, db.findRates(c1).size());
+        assertEquals(1, db.findRates(c2).size());
+        assertEquals(0.888f, db.findRate(c1, c2, DateTime.date(2012, 1, 18).asLong()).rate, 0.00001f);
+        assertEquals(1f / 0.888f, db.findRate(c2, c1, DateTime.date(2012, 1, 18).asLong()).rate, 0.00001f);
+    }
+
+    public void test_should_reset_time_to_midnight() {
+        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17).at(12, 23, 45, 456)).rate(0.78592f)
+                .create();
+        assertEquals(DateTime.date(2012, 1, 17).atMidnight().asLong(),
+                db.findRate(c1, c2, DateTime.date(2012, 1, 17).asLong()).date);
+    }
+
+    public void test_should_save_downloaded_rates() {
+        //given
+        List<ExchangeRate> downloadedRates = Arrays.asList(
+                RateBuilder.inMemory().from(c1).to(c2).at(DateTime.date(2012, 1, 18)).rate(0.1f).create(),
+                RateBuilder.inMemory().from(c1).to(c3).at(DateTime.date(2012, 1, 18)).rate(0.2f).create(),
+                RateBuilder.inMemory().from(c2).to(c3).at(DateTime.date(2012, 1, 18)).rate(0.3f).create(),
+                RateBuilder.inMemory().from(c2).to(c3).at(DateTime.date(2012, 1, 19)).rate(0.3f).notOK().create()
+        );
+        //when
+        db.saveDownloadedRates(downloadedRates);
+        //then
+        assertEquals(2, db.findRates(c1).size());
+        assertEquals(2, db.findRates(c2).size());
+        assertEquals(2, db.findRates(c3).size());
+    }
+
+    public void test_should_save_multiple_rates() {
+        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17)).rate(0.78592f).create();
+        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 18)).rate(0.78635f).create();
+
+        List<ExchangeRate> rates = db.findRates(c1);
+        assertEquals(2, rates.size());
+
+        assertEquals(0.78635f, rates.get(0).rate, 0.00001f);
+        assertEquals(0.78592f, rates.get(1).rate, 0.00001f);
+
+        rates = db.findRates(c2, c1);
+        assertEquals(2, rates.size());
+
+        assertEquals(1.0f / 0.78635f, rates.get(0).rate, 0.00001f);
+        assertEquals(1.0f / 0.78592f, rates.get(1).rate, 0.00001f);
     }
 
     public void test_should_update_existing_rate() {
@@ -79,71 +150,6 @@ public class ExchangeRateTest extends AbstractDbTest {
         assertEquals(1, db.findRates(c2).size());
         assertEquals(0.66667f, db.findRate(c1, c2, DateTime.date(2012, 1, 17).asLong()).rate, 0.00001f);
         assertEquals(1.5f, db.findRate(c2, c1, DateTime.date(2012, 1, 17).asLong()).rate, 0.00001f);
-    }
-
-    public void test_should_save_multiple_rates() {
-        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17)).rate(0.78592f).create();
-        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 18)).rate(0.78635f).create();
-
-        List<ExchangeRate> rates = db.findRates(c1);
-        assertEquals(2, rates.size());
-
-        assertEquals(0.78635f, rates.get(0).rate, 0.00001f);
-        assertEquals(0.78592f, rates.get(1).rate, 0.00001f);
-
-        rates = db.findRates(c2, c1);
-        assertEquals(2, rates.size());
-
-        assertEquals(1.0f/0.78635f, rates.get(0).rate, 0.00001f);
-        assertEquals(1.0f/0.78592f, rates.get(1).rate, 0.00001f);
-    }
-
-    public void test_should_delete_rate() {
-        ExchangeRate r = RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17)).rate(0.78592f).create();
-        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 18)).rate(0.78635f).create();
-
-        assertEquals(2, db.findRates(c1).size());
-        assertEquals(2, db.findRates(c2).size());
-
-        db.deleteRate(r);
-        assertEquals(1, db.findRates(c1).size());
-        assertEquals(1, db.findRates(c2).size());
-
-        ExchangeRateProvider rates = db.getLatestRates();
-        assertEquals(0.78635f, rates.getRate(c1, c2, DateTime.date(2012, 1, 20).asLong()).rate, 0.00001f);
-    }
-
-    public void test_should_replace_rate() {
-        RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 17)).rate(0.78592f).create();
-
-        assertEquals(1, db.findRates(c1).size());
-        assertEquals(1, db.findRates(c2).size());
-        assertEquals(0.78592f, db.findRate(c1, c2, DateTime.date(2012, 1, 17).asLong()).rate, 0.00001f);
-        assertEquals(1f/0.78592f, db.findRate(c2, c1, DateTime.date(2012, 1, 17).asLong()).rate, 0.00001f);
-
-        ExchangeRate rate = RateBuilder.inMemory().from(c1).to(c2).at(DateTime.date(2012, 1, 18)).rate(0.888f).create();
-        db.replaceRate(rate, DateTime.date(2012, 1, 17).asLong());
-
-        assertEquals(1, db.findRates(c1).size());
-        assertEquals(1, db.findRates(c2).size());
-        assertEquals(0.888f, db.findRate(c1, c2, DateTime.date(2012, 1, 18).asLong()).rate, 0.00001f);
-        assertEquals(1f/0.888f, db.findRate(c2, c1, DateTime.date(2012, 1, 18).asLong()).rate, 0.00001f);
-    }
-
-    public void test_should_save_downloaded_rates() {
-        //given
-        List<ExchangeRate> downloadedRates = Arrays.asList(
-                RateBuilder.inMemory().from(c1).to(c2).at(DateTime.date(2012, 1, 18)).rate(0.1f).create(),
-                RateBuilder.inMemory().from(c1).to(c3).at(DateTime.date(2012, 1, 18)).rate(0.2f).create(),
-                RateBuilder.inMemory().from(c2).to(c3).at(DateTime.date(2012, 1, 18)).rate(0.3f).create(),
-                RateBuilder.inMemory().from(c2).to(c3).at(DateTime.date(2012, 1, 19)).rate(0.3f).notOK().create()
-        );
-        //when
-        db.saveDownloadedRates(downloadedRates);
-        //then
-        assertEquals(2, db.findRates(c1).size());
-        assertEquals(2, db.findRates(c2).size());
-        assertEquals(2, db.findRates(c3).size());
     }
 
 }

@@ -11,6 +11,8 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.utils.MyPreferences.isQuickMenuEnabledForTransaction;
+
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -18,12 +20,10 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.text.Editable;
-import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.View;
-import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -32,11 +32,9 @@ import android.widget.ListAdapter;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import java.util.List;
-
 import greendroid.widget.QuickActionGrid;
 import greendroid.widget.QuickActionWidget;
+import java.util.List;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.adapter.BlotterListAdapter;
 import ru.orangesoftware.financisto.adapter.TransactionsListAdapter;
@@ -45,7 +43,6 @@ import ru.orangesoftware.financisto.blotter.BlotterFilter;
 import ru.orangesoftware.financisto.blotter.BlotterTotalCalculationTask;
 import ru.orangesoftware.financisto.blotter.TotalCalculationTask;
 import ru.orangesoftware.financisto.dialog.TransactionInfoDialog;
-import ru.orangesoftware.financisto.filter.Criteria;
 import ru.orangesoftware.financisto.filter.WhereFilter;
 import ru.orangesoftware.financisto.model.Account;
 import ru.orangesoftware.financisto.model.AccountType;
@@ -55,40 +52,98 @@ import ru.orangesoftware.financisto.utils.MenuItemInfo;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 import ru.orangesoftware.financisto.view.NodeInflater;
 
-import static ru.orangesoftware.financisto.utils.MyPreferences.isQuickMenuEnabledForTransaction;
-
 public class BlotterActivity extends AbstractListActivity {
 
     public static final String SAVE_FILTER = "saveFilter";
+
     public static final String EXTRA_FILTER_ACCOUNTS = "filterAccounts";
 
     private static final int NEW_TRANSACTION_REQUEST = 1;
+
     private static final int NEW_TRANSFER_REQUEST = 3;
+
     private static final int NEW_TRANSACTION_FROM_TEMPLATE_REQUEST = 5;
+
     private static final int MONTHLY_VIEW_REQUEST = 6;
+
     private static final int BILL_PREVIEW_REQUEST = 7;
 
     protected static final int FILTER_REQUEST = 6;
+
     private static final int MENU_DUPLICATE = MENU_ADD + 1;
+
     private static final int MENU_SAVE_AS_TEMPLATE = MENU_ADD + 2;
 
-    protected TextView totalText;
-    protected ImageButton bFilter;
-    protected ImageButton bTransfer;
-    protected ImageButton bTemplate;
-    protected ImageButton bSearch;
-    protected ImageButton bMenu;
-
-    protected QuickActionGrid transactionActionGrid;
     protected QuickActionGrid addButtonActionGrid;
 
-    private TotalCalculationTask calculationTask;
+    protected ImageButton bFilter;
 
-    protected boolean saveFilter;
+    protected ImageButton bMenu;
+
+    protected ImageButton bSearch;
+
+    protected ImageButton bTemplate;
+
+    protected ImageButton bTransfer;
+
     protected WhereFilter blotterFilter = WhereFilter.empty();
 
     protected boolean isAccountBlotter = false;
+
+    protected boolean saveFilter;
+
     protected boolean showAllBlotterButtons = true;
+
+    protected TextView totalText;
+
+    protected QuickActionGrid transactionActionGrid;
+
+    private QuickActionWidget.OnQuickActionClickListener addButtonActionListener = (widget, position) -> {
+        switch (position) {
+            case 0:
+                addItem(NEW_TRANSACTION_REQUEST, TransactionActivity.class);
+                break;
+            case 1:
+                addItem(NEW_TRANSFER_REQUEST, TransferActivity.class);
+                break;
+            case 2:
+                createFromTemplate();
+                break;
+        }
+    };
+
+    private TotalCalculationTask calculationTask;
+
+    private NodeInflater inflater;
+
+    private long selectedId = -1;
+
+    private QuickActionWidget.OnQuickActionClickListener transactionActionListener
+            = new QuickActionWidget.OnQuickActionClickListener() {
+        public void onQuickActionClicked(QuickActionWidget widget, int position) {
+            switch (position) {
+                case 0:
+                    showTransactionInfo(selectedId);
+                    break;
+                case 1:
+                    editTransaction(selectedId);
+                    break;
+                case 2:
+                    deleteTransaction(selectedId);
+                    break;
+                case 3:
+                    duplicateTransaction(selectedId, 1);
+                    break;
+                case 4:
+                    clearTransaction(selectedId);
+                    break;
+                case 5:
+                    reconcileTransaction(selectedId);
+                    break;
+            }
+        }
+
+    };
 
     public BlotterActivity(int layoutId) {
         super(layoutId);
@@ -98,6 +153,163 @@ public class BlotterActivity extends AbstractListActivity {
         super(R.layout.blotter);
     }
 
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        LayoutInflater layoutInflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        inflater = new NodeInflater(layoutInflater);
+        integrityCheck();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == FILTER_REQUEST) {
+            if (resultCode == RESULT_FIRST_USER) {
+                blotterFilter.clear();
+            } else if (resultCode == RESULT_OK) {
+                blotterFilter = WhereFilter.fromIntent(data);
+            }
+            if (saveFilter) {
+                saveFilter();
+            }
+            applyFilter();
+            recreateCursor();
+        } else if (resultCode == RESULT_OK && requestCode == NEW_TRANSACTION_FROM_TEMPLATE_REQUEST) {
+            createTransactionFromTemplate(data);
+        }
+        if (resultCode == RESULT_OK || resultCode == RESULT_FIRST_USER) {
+            calculateTotals();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        blotterFilter.toBundle(outState);
+    }
+
+    @Override
+    public void editItem(View v, int position, long id) {
+        editTransaction(id);
+    }
+
+    @Override
+    public void integrityCheck() {
+        new IntegrityCheckTask(this).execute(new IntegrityCheckRunningBalance(this, db));
+    }
+
+    @Override
+    public void onBackPressed() {
+        FrameLayout searchLayout = findViewById(R.id.search_text_frame);
+        if (searchLayout.getVisibility() == View.VISIBLE) {
+            searchLayout.setVisibility(View.GONE);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    @Override
+    public boolean onPopupItemSelected(int itemId, View view, int position, long id) {
+        if (!super.onPopupItemSelected(itemId, view, position, id)) {
+            switch (itemId) {
+                case MENU_DUPLICATE:
+                    duplicateTransaction(id, 1);
+                    return true;
+                case MENU_SAVE_AS_TEMPLATE:
+                    new BlotterOperations(this, db, id).duplicateAsTemplate();
+                    Toast.makeText(this, R.string.save_as_template_success, Toast.LENGTH_SHORT).show();
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    public void onPopupMenuSelected(int id) {
+
+        long accountId = blotterFilter.getAccountId();
+
+        Intent intent = new Intent(this, MonthlyViewActivity.class);
+        intent.putExtra(MonthlyViewActivity.ACCOUNT_EXTRA, accountId);
+
+        switch (id) {
+
+            case R.id.opt_menu_month:
+                // call credit card bill activity sending account id
+                intent.putExtra(MonthlyViewActivity.BILL_PREVIEW_EXTRA, false);
+                startActivityForResult(intent, MONTHLY_VIEW_REQUEST);
+                break;
+
+            case R.id.opt_menu_bill:
+                if (accountId != -1) {
+                    Account account = db.getAccount(accountId);
+
+                    // call credit card bill activity sending account id
+                    if (account.paymentDay > 0 && account.closingDay > 0) {
+                        intent.putExtra(MonthlyViewActivity.BILL_PREVIEW_EXTRA, true);
+                        startActivityForResult(intent, BILL_PREVIEW_REQUEST);
+                    } else {
+                        // display message: need payment and closing day
+                        AlertDialog.Builder dlgAlert = new AlertDialog.Builder(this);
+                        dlgAlert.setMessage(R.string.statement_error);
+                        dlgAlert.setTitle(R.string.ccard_statement);
+                        dlgAlert.setPositiveButton(R.string.ok, null);
+                        dlgAlert.setCancelable(true);
+                        dlgAlert.create().show();
+                    }
+                }
+        }
+    }
+
+    @Override
+    public void recreateCursor() {
+        super.recreateCursor();
+        calculateTotals();
+    }
+
+    @Override
+    protected void addItem() {
+        if (showAllBlotterButtons) {
+            addItem(NEW_TRANSACTION_REQUEST, TransactionActivity.class);
+        } else {
+            addButtonActionGrid.show(bAdd);
+        }
+    }
+
+    protected void addItem(int requestId, Class<? extends AbstractTransactionActivity> clazz) {
+        Intent intent = new Intent(BlotterActivity.this, clazz);
+        long accountId = blotterFilter.getAccountId();
+        if (accountId != -1) {
+            intent.putExtra(TransactionActivity.ACCOUNT_ID_EXTRA, accountId);
+        }
+        intent.putExtra(TransactionActivity.TEMPLATE_EXTRA, blotterFilter.getIsTemplate());
+        startActivityForResult(intent, requestId);
+    }
+
+    protected boolean addTemplateToAddButton() {
+        return true;
+    }
+
+    protected void afterDeletingTransaction(long id) {
+        recreateCursor();
+        AccountWidget.updateWidgets(this);
+    }
+
+    protected void applyFilter() {
+        long accountId = blotterFilter.getAccountId();
+        if (accountId != -1) {
+            Account a = db.getAccount(accountId);
+            bAdd.setVisibility(a != null && a.isActive ? View.VISIBLE : View.GONE);
+            if (showAllBlotterButtons) {
+                bTransfer.setVisibility(a != null && a.isActive ? View.VISIBLE : View.GONE);
+            }
+        }
+        String title = blotterFilter.getTitle();
+        if (title != null) {
+            setTitle(getString(R.string.blotter) + " : " + title);
+        }
+        updateFilterImage();
+    }
+
     protected void calculateTotals() {
         if (calculationTask != null) {
             calculationTask.stop();
@@ -105,6 +317,45 @@ public class BlotterActivity extends AbstractListActivity {
         }
         calculationTask = createTotalCalculationTask();
         calculationTask.execute();
+    }
+
+    @Override
+    protected ListAdapter createAdapter(Cursor cursor) {
+        long accountId = blotterFilter.getAccountId();
+        if (accountId != -1) {
+            return new TransactionsListAdapter(this, db, cursor);
+        } else {
+            return new BlotterListAdapter(this, db, cursor);
+        }
+    }
+
+    @Override
+    protected List<MenuItemInfo> createContextMenus(long id) {
+        if (blotterFilter.isTemplate() || blotterFilter.isSchedule()) {
+            return super.createContextMenus(id);
+        } else {
+            List<MenuItemInfo> menus = super.createContextMenus(id);
+            menus.add(new MenuItemInfo(MENU_DUPLICATE, R.string.duplicate));
+            menus.add(new MenuItemInfo(MENU_SAVE_AS_TEMPLATE, R.string.save_as_template));
+            return menus;
+        }
+    }
+
+    @Override
+    protected Cursor createCursor() {
+        Cursor c;
+        long accountId = blotterFilter.getAccountId();
+        if (accountId != -1) {
+            c = db.getBlotterForAccount(blotterFilter);
+        } else {
+            c = db.getBlotter(blotterFilter);
+        }
+        return c;
+    }
+
+    protected void createFromTemplate() {
+        Intent intent = new Intent(this, SelectTemplateActivity.class);
+        startActivityForResult(intent, NEW_TRANSACTION_FROM_TEMPLATE_REQUEST);
     }
 
     protected TotalCalculationTask createTotalCalculationTask() {
@@ -117,17 +368,8 @@ public class BlotterActivity extends AbstractListActivity {
     }
 
     @Override
-    public void recreateCursor() {
-        super.recreateCursor();
-        calculateTotals();
-    }
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        LayoutInflater layoutInflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        inflater = new NodeInflater(layoutInflater);
-        integrityCheck();
+    protected void deleteItem(View v, int position, final long id) {
+        deleteTransaction(id);
     }
 
     @Override
@@ -150,7 +392,8 @@ public class BlotterActivity extends AbstractListActivity {
         bFilter.setOnClickListener(v -> {
             Intent intent = new Intent(BlotterActivity.this, BlotterFilterActivity.class);
             blotterFilter.toIntent(intent);
-            intent.putExtra(BlotterFilterActivity.IS_ACCOUNT_FILTER, isAccountBlotter && blotterFilter.getAccountId() > 0);
+            intent.putExtra(BlotterFilterActivity.IS_ACCOUNT_FILTER,
+                    isAccountBlotter && blotterFilter.getAccountId() > 0);
             startActivityForResult(intent, FILTER_REQUEST);
         });
 
@@ -199,12 +442,6 @@ public class BlotterActivity extends AbstractListActivity {
 
             searchText.addTextChangedListener(new TextWatcher() {
                 @Override
-                public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {}
-
-                @Override
-                public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {}
-
-                @Override
                 public void afterTextChanged(Editable editable) {
                     ImageButton clearButton = findViewById(R.id.search_text_clear);
                     String text = editable.toString();
@@ -220,6 +457,14 @@ public class BlotterActivity extends AbstractListActivity {
                     recreateCursor();
                     applyFilter();
                     saveFilter();
+                }
+
+                @Override
+                public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                }
+
+                @Override
+                public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
                 }
             });
 
@@ -237,6 +482,37 @@ public class BlotterActivity extends AbstractListActivity {
         calculateTotals();
         prepareTransactionActionGrid();
         prepareAddButtonActionGrid();
+    }
+
+    @Override
+    protected void onItemClick(View v, int position, long id) {
+        if (isQuickMenuEnabledForTransaction(this)) {
+            selectedId = id;
+            transactionActionGrid.show(v);
+        } else {
+            showTransactionInfo(id);
+        }
+    }
+
+    protected void prepareTransactionActionGrid() {
+        transactionActionGrid = new QuickActionGrid(this);
+        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_info, R.string.info));
+        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_edit, R.string.edit));
+        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_trash, R.string.delete));
+        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_copy, R.string.duplicate));
+        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_tick, R.string.clear));
+        transactionActionGrid
+                .addQuickAction(new MyQuickAction(this, R.drawable.ic_action_double_tick, R.string.reconcile));
+        transactionActionGrid.setOnQuickActionClickListener(transactionActionListener);
+    }
+
+    protected void updateFilterImage() {
+        FilterState.updateFilterColor(this, blotterFilter, bFilter);
+    }
+
+    @Override
+    protected void viewItem(View v, int position, long id) {
+        showTransactionInfo(id);
     }
 
     private void applyPopupMenu() {
@@ -270,162 +546,26 @@ public class BlotterActivity extends AbstractListActivity {
         }
     }
 
-    public void onPopupMenuSelected(int id) {
-
-        long accountId = blotterFilter.getAccountId();
-
-        Intent intent = new Intent(this, MonthlyViewActivity.class);
-        intent.putExtra(MonthlyViewActivity.ACCOUNT_EXTRA, accountId);
-
-        switch (id) {
-
-            case R.id.opt_menu_month:
-                // call credit card bill activity sending account id
-                intent.putExtra(MonthlyViewActivity.BILL_PREVIEW_EXTRA, false);
-                startActivityForResult(intent, MONTHLY_VIEW_REQUEST);
-                break;
-
-            case R.id.opt_menu_bill:
-                if (accountId != -1) {
-                    Account account = db.getAccount(accountId);
-
-                    // call credit card bill activity sending account id
-                    if (account.paymentDay > 0 && account.closingDay > 0) {
-                        intent.putExtra(MonthlyViewActivity.BILL_PREVIEW_EXTRA, true);
-                        startActivityForResult(intent, BILL_PREVIEW_REQUEST);
-                    } else {
-                        // display message: need payment and closing day
-                        AlertDialog.Builder dlgAlert = new AlertDialog.Builder(this);
-                        dlgAlert.setMessage(R.string.statement_error);
-                        dlgAlert.setTitle(R.string.ccard_statement);
-                        dlgAlert.setPositiveButton(R.string.ok, null);
-                        dlgAlert.setCancelable(true);
-                        dlgAlert.create().show();
-                    }
-                }
-        }
-    }
-
-    private void showTotals() {
-        Intent intent = new Intent(this, BlotterTotalsDetailsActivity.class);
-        blotterFilter.toIntent(intent);
-        startActivityForResult(intent, -1);
-    }
-
-    protected void prepareTransactionActionGrid() {
-        transactionActionGrid = new QuickActionGrid(this);
-        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_info, R.string.info));
-        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_edit, R.string.edit));
-        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_trash, R.string.delete));
-        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_copy, R.string.duplicate));
-        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_tick, R.string.clear));
-        transactionActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_double_tick, R.string.reconcile));
-        transactionActionGrid.setOnQuickActionClickListener(transactionActionListener);
-    }
-
-    private QuickActionWidget.OnQuickActionClickListener transactionActionListener = new QuickActionWidget.OnQuickActionClickListener() {
-        public void onQuickActionClicked(QuickActionWidget widget, int position) {
-            switch (position) {
-                case 0:
-                    showTransactionInfo(selectedId);
-                    break;
-                case 1:
-                    editTransaction(selectedId);
-                    break;
-                case 2:
-                    deleteTransaction(selectedId);
-                    break;
-                case 3:
-                    duplicateTransaction(selectedId, 1);
-                    break;
-                case 4:
-                    clearTransaction(selectedId);
-                    break;
-                case 5:
-                    reconcileTransaction(selectedId);
-                    break;
-            }
-        }
-
-    };
-
-    private void prepareAddButtonActionGrid() {
-        addButtonActionGrid = new QuickActionGrid(this);
-        addButtonActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.actionbar_add_big, R.string.transaction));
-        addButtonActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_transfer, R.string.transfer));
-        if (addTemplateToAddButton()) {
-            addButtonActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.actionbar_tiles_large, R.string.template));
-        } else {
-            addButtonActionGrid.setNumColumns(2);
-        }
-        addButtonActionGrid.setOnQuickActionClickListener(addButtonActionListener);
-    }
-
-    protected boolean addTemplateToAddButton() {
-        return true;
-    }
-
-    private QuickActionWidget.OnQuickActionClickListener addButtonActionListener = (widget, position) -> {
-        switch (position) {
-            case 0:
-                addItem(NEW_TRANSACTION_REQUEST, TransactionActivity.class);
-                break;
-            case 1:
-                addItem(NEW_TRANSFER_REQUEST, TransferActivity.class);
-                break;
-            case 2:
-                createFromTemplate();
-                break;
-        }
-    };
-
     private void clearTransaction(long selectedId) {
         new BlotterOperations(this, db, selectedId).clearTransaction();
         recreateCursor();
     }
 
-    private void reconcileTransaction(long selectedId) {
-        new BlotterOperations(this, db, selectedId).reconcileTransaction();
-        recreateCursor();
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        blotterFilter.toBundle(outState);
-    }
-
-    protected void createFromTemplate() {
-        Intent intent = new Intent(this, SelectTemplateActivity.class);
-        startActivityForResult(intent, NEW_TRANSACTION_FROM_TEMPLATE_REQUEST);
-    }
-
-    @Override
-    protected List<MenuItemInfo> createContextMenus(long id) {
-        if (blotterFilter.isTemplate() || blotterFilter.isSchedule()) {
-            return super.createContextMenus(id);
-        } else {
-            List<MenuItemInfo> menus = super.createContextMenus(id);
-            menus.add(new MenuItemInfo(MENU_DUPLICATE, R.string.duplicate));
-            menus.add(new MenuItemInfo(MENU_SAVE_AS_TEMPLATE, R.string.save_as_template));
-            return menus;
-        }
-    }
-
-    @Override
-    public boolean onPopupItemSelected(int itemId, View view, int position, long id) {
-        if (!super.onPopupItemSelected(itemId, view, position, id)) {
-            switch (itemId) {
-                case MENU_DUPLICATE:
-                    duplicateTransaction(id, 1);
-                    return true;
-                case MENU_SAVE_AS_TEMPLATE:
-                    new BlotterOperations(this, db, id).duplicateAsTemplate();
-                    Toast.makeText(this, R.string.save_as_template_success, Toast.LENGTH_SHORT).show();
-                    return true;
+    private void createTransactionFromTemplate(Intent data) {
+        long templateId = data.getLongExtra(SelectTemplateActivity.TEMPATE_ID, -1);
+        int multiplier = data.getIntExtra(SelectTemplateActivity.MULTIPLIER, 1);
+        boolean edit = data.getBooleanExtra(SelectTemplateActivity.EDIT_AFTER_CREATION, false);
+        if (templateId > 0) {
+            long id = duplicateTransaction(templateId, multiplier);
+            Transaction t = db.getTransaction(id);
+            if (t.fromAmount == 0 || edit) {
+                new BlotterOperations(this, db, id).asNewFromTemplate().editTransaction();
             }
         }
-        return false;
+    }
+
+    private void deleteTransaction(long id) {
+        new BlotterOperations(this, db, id).deleteTransaction();
     }
 
     private long duplicateTransaction(long id, int multiplier) {
@@ -442,102 +582,27 @@ public class BlotterActivity extends AbstractListActivity {
         return newId;
     }
 
-    @Override
-    protected void addItem() {
-        if (showAllBlotterButtons) {
-            addItem(NEW_TRANSACTION_REQUEST, TransactionActivity.class);
-        } else {
-            addButtonActionGrid.show(bAdd);
-        }
-    }
-
-    protected void addItem(int requestId, Class<? extends AbstractTransactionActivity> clazz) {
-        Intent intent = new Intent(BlotterActivity.this, clazz);
-        long accountId = blotterFilter.getAccountId();
-        if (accountId != -1) {
-            intent.putExtra(TransactionActivity.ACCOUNT_ID_EXTRA, accountId);
-        }
-        intent.putExtra(TransactionActivity.TEMPLATE_EXTRA, blotterFilter.getIsTemplate());
-        startActivityForResult(intent, requestId);
-    }
-
-    @Override
-    protected Cursor createCursor() {
-        Cursor c;
-        long accountId = blotterFilter.getAccountId();
-        if (accountId != -1) {
-            c = db.getBlotterForAccount(blotterFilter);
-        } else {
-            c = db.getBlotter(blotterFilter);
-        }
-        return c;
-    }
-
-    @Override
-    protected ListAdapter createAdapter(Cursor cursor) {
-        long accountId = blotterFilter.getAccountId();
-        if (accountId != -1) {
-            return new TransactionsListAdapter(this, db, cursor);
-        } else {
-            return new BlotterListAdapter(this, db, cursor);
-        }
-    }
-
-    @Override
-    protected void deleteItem(View v, int position, final long id) {
-        deleteTransaction(id);
-    }
-
-    private void deleteTransaction(long id) {
-        new BlotterOperations(this, db, id).deleteTransaction();
-    }
-
-    protected void afterDeletingTransaction(long id) {
-        recreateCursor();
-        AccountWidget.updateWidgets(this);
-    }
-
-    @Override
-    public void editItem(View v, int position, long id) {
-        editTransaction(id);
-    }
-
     private void editTransaction(long id) {
         new BlotterOperations(this, db, id).editTransaction();
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == FILTER_REQUEST) {
-            if (resultCode == RESULT_FIRST_USER) {
-                blotterFilter.clear();
-            } else if (resultCode == RESULT_OK) {
-                blotterFilter = WhereFilter.fromIntent(data);
-            }
-            if (saveFilter) {
-                saveFilter();
-            }
-            applyFilter();
-            recreateCursor();
-        } else if (resultCode == RESULT_OK && requestCode == NEW_TRANSACTION_FROM_TEMPLATE_REQUEST) {
-            createTransactionFromTemplate(data);
+    private void prepareAddButtonActionGrid() {
+        addButtonActionGrid = new QuickActionGrid(this);
+        addButtonActionGrid
+                .addQuickAction(new MyQuickAction(this, R.drawable.actionbar_add_big, R.string.transaction));
+        addButtonActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_action_transfer, R.string.transfer));
+        if (addTemplateToAddButton()) {
+            addButtonActionGrid
+                    .addQuickAction(new MyQuickAction(this, R.drawable.actionbar_tiles_large, R.string.template));
+        } else {
+            addButtonActionGrid.setNumColumns(2);
         }
-        if (resultCode == RESULT_OK || resultCode == RESULT_FIRST_USER) {
-            calculateTotals();
-        }
+        addButtonActionGrid.setOnQuickActionClickListener(addButtonActionListener);
     }
 
-    private void createTransactionFromTemplate(Intent data) {
-        long templateId = data.getLongExtra(SelectTemplateActivity.TEMPATE_ID, -1);
-        int multiplier = data.getIntExtra(SelectTemplateActivity.MULTIPLIER, 1);
-        boolean edit = data.getBooleanExtra(SelectTemplateActivity.EDIT_AFTER_CREATION, false);
-        if (templateId > 0) {
-            long id = duplicateTransaction(templateId, multiplier);
-            Transaction t = db.getTransaction(id);
-            if (t.fromAmount == 0 || edit) {
-                new BlotterOperations(this, db, id).asNewFromTemplate().editTransaction();
-            }
-        }
+    private void reconcileTransaction(long selectedId) {
+        new BlotterOperations(this, db, selectedId).reconcileTransaction();
+        recreateCursor();
     }
 
     private void saveFilter() {
@@ -545,62 +610,14 @@ public class BlotterActivity extends AbstractListActivity {
         blotterFilter.toSharedPreferences(preferences);
     }
 
-    protected void applyFilter() {
-        long accountId = blotterFilter.getAccountId();
-        if (accountId != -1) {
-            Account a = db.getAccount(accountId);
-            bAdd.setVisibility(a != null && a.isActive ? View.VISIBLE : View.GONE);
-            if (showAllBlotterButtons) {
-                bTransfer.setVisibility(a != null && a.isActive ? View.VISIBLE : View.GONE);
-            }
-        }
-        String title = blotterFilter.getTitle();
-        if (title != null) {
-            setTitle(getString(R.string.blotter) + " : " + title);
-        }
-        updateFilterImage();
-    }
-
-    protected void updateFilterImage() {
-        FilterState.updateFilterColor(this, blotterFilter, bFilter);
-    }
-
-    private NodeInflater inflater;
-    private long selectedId = -1;
-
-    @Override
-    protected void onItemClick(View v, int position, long id) {
-        if (isQuickMenuEnabledForTransaction(this)) {
-            selectedId = id;
-            transactionActionGrid.show(v);
-        } else {
-            showTransactionInfo(id);
-        }
-    }
-
-    @Override
-    protected void viewItem(View v, int position, long id) {
-        showTransactionInfo(id);
+    private void showTotals() {
+        Intent intent = new Intent(this, BlotterTotalsDetailsActivity.class);
+        blotterFilter.toIntent(intent);
+        startActivityForResult(intent, -1);
     }
 
     private void showTransactionInfo(long id) {
         TransactionInfoDialog transactionInfoView = new TransactionInfoDialog(this, db, inflater);
         transactionInfoView.show(this, id);
-    }
-
-    @Override
-    public void integrityCheck() {
-        new IntegrityCheckTask(this).execute(new IntegrityCheckRunningBalance(this, db));
-    }
-
-    @Override
-    public void onBackPressed()
-    {
-        FrameLayout searchLayout = findViewById(R.id.search_text_frame);
-        if (searchLayout.getVisibility() == View.VISIBLE) {
-            searchLayout.setVisibility(View.GONE);
-        } else {
-            super.onBackPressed();
-        }
     }
 }

@@ -8,12 +8,13 @@
 
 package ru.orangesoftware.financisto.export.qif;
 
+import static ru.orangesoftware.financisto.export.qif.QifDateFormat.EU_FORMAT;
+import static ru.orangesoftware.financisto.export.qif.QifDateFormat.US_FORMAT;
+
 import android.content.Intent;
 import ru.orangesoftware.financisto.activity.QifImportActivity;
 import ru.orangesoftware.financisto.model.Currency;
 import ru.orangesoftware.financisto.utils.CurrencyCache;
-
-import static ru.orangesoftware.financisto.export.qif.QifDateFormat.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -22,15 +23,11 @@ import static ru.orangesoftware.financisto.export.qif.QifDateFormat.*;
  */
 public class QifImportOptions {
 
-    public final QifDateFormat dateFormat;
-    public final String filename;
     public final Currency currency;
 
-    public QifImportOptions(String filename, QifDateFormat dateFormat, Currency currency) {
-        this.filename = filename;
-        this.dateFormat = dateFormat;
-        this.currency = currency;
-    }
+    public final QifDateFormat dateFormat;
+
+    public final String filename;
 
     public static QifImportOptions fromIntent(Intent data) {
         String filename = data.getStringExtra(QifImportActivity.QIF_IMPORT_FILENAME);
@@ -38,6 +35,12 @@ public class QifImportOptions {
         long currencyId = data.getLongExtra(QifImportActivity.QIF_IMPORT_CURRENCY, 1);
         Currency currency = CurrencyCache.getCurrencyOrEmpty(currencyId);
         return new QifImportOptions(filename, f == 0 ? EU_FORMAT : US_FORMAT, currency);
+    }
+
+    public QifImportOptions(String filename, QifDateFormat dateFormat, Currency currency) {
+        this.filename = filename;
+        this.dateFormat = dateFormat;
+        this.currency = currency;
     }
 
 }

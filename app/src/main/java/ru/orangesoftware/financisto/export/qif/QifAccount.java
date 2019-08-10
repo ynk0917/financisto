@@ -1,14 +1,13 @@
 package ru.orangesoftware.financisto.export.qif;
 
-import ru.orangesoftware.financisto.model.Account;
-import ru.orangesoftware.financisto.model.AccountType;
-import ru.orangesoftware.financisto.model.Currency;
+import static ru.orangesoftware.financisto.export.qif.QifUtils.trimFirstChar;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
-import static ru.orangesoftware.financisto.export.qif.QifUtils.trimFirstChar;
+import ru.orangesoftware.financisto.model.Account;
+import ru.orangesoftware.financisto.model.AccountType;
+import ru.orangesoftware.financisto.model.Currency;
 
 /**
  * Created by IntelliJ IDEA.
@@ -17,17 +16,33 @@ import static ru.orangesoftware.financisto.export.qif.QifUtils.trimFirstChar;
  */
 public class QifAccount {
 
-    public String type = "";
+    public Account dbAccount;
+
     public String memo = "";
 
-    public Account dbAccount;
     public final List<QifTransaction> transactions = new ArrayList<QifTransaction>();
+
+    public String type = "";
 
     public static QifAccount fromAccount(Account account) {
         QifAccount qifAccount = new QifAccount();
         qifAccount.type = decodeAccountType(account.type);
         qifAccount.memo = account.title;
         return qifAccount;
+    }
+
+    public void readFrom(QifBufferedReader r) throws IOException {
+        String line;
+        while ((line = r.readLine()) != null) {
+            if (line.startsWith("^")) {
+                break;
+            }
+            if (line.startsWith("N")) {
+                this.memo = trimFirstChar(line);
+            } else if (line.startsWith("T")) {
+                this.type = trimFirstChar(line);
+            }
+        }
     }
 
     public Account toAccount(Currency currency) {
@@ -37,6 +52,29 @@ public class QifAccount {
         a.title = memo;
         a.type = encodeAccountType(type);
         return a;
+    }
+
+    public void writeTo(QifBufferedWriter w) throws IOException {
+        w.writeAccountsHeader();
+        w.write("N").write(memo).newLine();
+        w.write("T").write(type).newLine();
+        w.end();
+    }
+
+    private String encodeAccountType(String type) {
+        if ("Bank".endsWith(type)) {
+            return AccountType.BANK.name();
+        } else if ("Cash".equals(type)) {
+            return AccountType.CASH.name();
+        } else if ("CCard".equals(type)) {
+            return AccountType.CREDIT_CARD.name();
+        } else if ("Oth A".equals(type)) {
+            return AccountType.ASSET.name();
+        } else if ("Oth L".equals(type)) {
+            return AccountType.LIABILITY.name();
+        } else {
+            return AccountType.OTHER.name();
+        }
     }
 
     /*
@@ -60,42 +98,6 @@ public class QifAccount {
                 return "Oth A";
             default:
                 return "Oth L";
-        }
-    }
-
-    private String encodeAccountType(String type) {
-        if ("Bank".endsWith(type))
-            return AccountType.BANK.name();
-        else if ("Cash".equals(type))
-            return AccountType.CASH.name();
-        else if ("CCard".equals(type))
-            return AccountType.CREDIT_CARD.name();
-        else if ("Oth A".equals(type))
-            return AccountType.ASSET.name();
-        else if ("Oth L".equals(type))
-            return AccountType.LIABILITY.name();
-        else
-            return AccountType.OTHER.name();
-    }
-
-    public void writeTo(QifBufferedWriter w) throws IOException {
-        w.writeAccountsHeader();
-        w.write("N").write(memo).newLine();
-        w.write("T").write(type).newLine();
-        w.end();
-    }
-
-    public void readFrom(QifBufferedReader r) throws IOException {
-        String line;
-        while ((line = r.readLine()) != null) {
-            if (line.startsWith("^")) {
-                break;
-            }
-            if (line.startsWith("N")) {
-                this.memo = trimFirstChar(line);
-            } else if (line.startsWith("T")) {
-                this.type = trimFirstChar(line);
-            }
         }
     }
 }

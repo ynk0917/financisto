@@ -12,7 +12,6 @@ package ru.orangesoftware.financisto.widget;
 
 import android.app.Dialog;
 import android.app.DialogFragment;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Vibrator;
 import android.support.v4.content.ContextCompat;
@@ -20,7 +19,9 @@ import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.TextView;
-
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Stack;
 import org.androidannotations.annotations.AfterInject;
 import org.androidannotations.annotations.AfterViews;
 import org.androidannotations.annotations.Click;
@@ -29,11 +30,6 @@ import org.androidannotations.annotations.FragmentArg;
 import org.androidannotations.annotations.SystemService;
 import org.androidannotations.annotations.ViewById;
 import org.androidannotations.annotations.ViewsById;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Stack;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 import ru.orangesoftware.financisto.utils.Utils;
@@ -41,11 +37,8 @@ import ru.orangesoftware.financisto.utils.Utils;
 @EFragment(R.layout.calculator)
 public class CalculatorInput extends DialogFragment {
 
-    @ViewById(R.id.result)
-    protected TextView tvResult;
-
-    @ViewById(R.id.op)
-    protected TextView tvOp;
+    @FragmentArg
+    protected String amount;
 
     @ViewsById({R.id.b0, R.id.b1, R.id.b2, R.id.b3,
             R.id.b4, R.id.b5, R.id.b6, R.id.b7, R.id.b8, R.id.b9, R.id.bAdd,
@@ -53,22 +46,26 @@ public class CalculatorInput extends DialogFragment {
             R.id.bPlusMinus, R.id.bDot, R.id.bResult, R.id.bClear, R.id.bDelete})
     protected List<Button> buttons;
 
+    @ViewById(R.id.op)
+    protected TextView tvOp;
+
+    @ViewById(R.id.result)
+    protected TextView tvResult;
+
     @SystemService
     protected Vibrator vibrator;
 
-    @FragmentArg
-    protected String amount;
-
-    private final Stack<String> stack = new Stack<>();
-    private String result = "0";
-    private boolean isRestart = true;
     private boolean isInEquals = false;
+
+    private boolean isRestart = true;
+
     private char lastOp = '\0';
+
     private AmountListener listener;
 
-    public void setListener(AmountListener listener) {
-        this.listener = listener;
-    }
+    private String result = "0";
+
+    private final Stack<String> stack = new Stack<>();
 
     @AfterInject
     public void init() {
@@ -83,13 +80,6 @@ public class CalculatorInput extends DialogFragment {
         setDisplay(amount);
     }
 
-    @Override
-    public Dialog onCreateDialog(Bundle savedInstanceState) {
-        Dialog dialog = super.onCreateDialog(savedInstanceState);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        return dialog;
-    }
-
     @Click({R.id.b0, R.id.b1, R.id.b2, R.id.b3,
             R.id.b4, R.id.b5, R.id.b6, R.id.b7, R.id.b8, R.id.b9, R.id.bAdd,
             R.id.bSubtract, R.id.bDivide, R.id.bMultiply, R.id.bPercent,
@@ -98,6 +88,18 @@ public class CalculatorInput extends DialogFragment {
         Button b = (Button) v;
         char c = b.getText().charAt(0);
         onButtonClick(c);
+    }
+
+    @Click(R.id.bCancel)
+    public void onCancel() {
+        dismiss();
+    }
+
+    @Override
+    public Dialog onCreateDialog(Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        return dialog;
     }
 
     @Click(R.id.bOK)
@@ -109,42 +111,25 @@ public class CalculatorInput extends DialogFragment {
         dismiss();
     }
 
-    @Click(R.id.bCancel)
-    public void onCancel() {
-        dismiss();
+    public void setListener(AmountListener listener) {
+        this.listener = listener;
     }
 
-    private void setDisplay(String s) {
-        if (Utils.isNotEmpty(s)) {
-            s = s.replaceAll(",", ".");
-            result = s;
-            tvResult.setText(s);
+    private void addChar(char c) {
+        String s = tvResult.getText().toString();
+        if (c == '.' && s.indexOf('.') != -1 && !isRestart) {
+            return;
         }
-    }
-
-    private void onButtonClick(char c) {
-        if (vibrator != null && MyPreferences.isPinHapticFeedbackEnabled(getActivity())) {
-            vibrator.vibrate(20);
+        if ("0".equals(s)) {
+            s = String.valueOf(c);
+        } else {
+            s += c;
         }
-        switch (c) {
-            case 'C':
-                resetAll();
-                break;
-            case '<':
-                doBackspace();
-                break;
-            default:
-                doButton(c);
-                break;
+        setDisplay(s);
+        if (isRestart) {
+            setDisplay(String.valueOf(c));
+            isRestart = false;
         }
-    }
-
-    private void resetAll() {
-        setDisplay("0");
-        tvOp.setText("");
-        lastOp = '\0';
-        isRestart = true;
-        stack.clear();
     }
 
     private void doBackspace() {
@@ -184,32 +169,16 @@ public class CalculatorInput extends DialogFragment {
         }
     }
 
-    private void addChar(char c) {
-        String s = tvResult.getText().toString();
-        if (c == '.' && s.indexOf('.') != -1 && !isRestart) {
+    private void doEqualsChar() {
+        if (lastOp == '\0') {
             return;
         }
-        if ("0".equals(s)) {
-            s = String.valueOf(c);
-        } else {
-            s += c;
+        if (!isInEquals) {
+            isInEquals = true;
+            stack.push(result);
         }
-        setDisplay(s);
-        if (isRestart) {
-            setDisplay(String.valueOf(c));
-            isRestart = false;
-        }
-    }
-
-    private void doOpChar(char op) {
-        if (isInEquals) {
-            stack.clear();
-            isInEquals = false;
-        }
-        stack.push(result);
         doLastOp();
-        lastOp = op;
-        tvOp.setText(String.valueOf(lastOp));
+        tvOp.setText("");
     }
 
     private void doLastOp() {
@@ -247,23 +216,57 @@ public class CalculatorInput extends DialogFragment {
         }
     }
 
+    private void doOpChar(char op) {
+        if (isInEquals) {
+            stack.clear();
+            isInEquals = false;
+        }
+        stack.push(result);
+        doLastOp();
+        lastOp = op;
+        tvOp.setText(String.valueOf(lastOp));
+    }
+
     private void doPercentChar() {
-        if (stack.size() == 0)
+        if (stack.size() == 0) {
             return;
-        setDisplay(new BigDecimal(result).divide(Utils.HUNDRED).multiply(new BigDecimal(stack.peek())).toPlainString());
+        }
+        setDisplay(
+                new BigDecimal(result).divide(Utils.HUNDRED).multiply(new BigDecimal(stack.peek())).toPlainString());
         tvOp.setText("");
     }
 
-    private void doEqualsChar() {
-        if (lastOp == '\0') {
-            return;
+    private void onButtonClick(char c) {
+        if (vibrator != null && MyPreferences.isPinHapticFeedbackEnabled(getActivity())) {
+            vibrator.vibrate(20);
         }
-        if (!isInEquals) {
-            isInEquals = true;
-            stack.push(result);
+        switch (c) {
+            case 'C':
+                resetAll();
+                break;
+            case '<':
+                doBackspace();
+                break;
+            default:
+                doButton(c);
+                break;
         }
-        doLastOp();
+    }
+
+    private void resetAll() {
+        setDisplay("0");
         tvOp.setText("");
+        lastOp = '\0';
+        isRestart = true;
+        stack.clear();
+    }
+
+    private void setDisplay(String s) {
+        if (Utils.isNotEmpty(s)) {
+            s = s.replaceAll(",", ".");
+            result = s;
+            tvResult.setText(s);
+        }
     }
 
 }

@@ -10,12 +10,8 @@ package ru.orangesoftware.financisto.export;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
-import android.app.TabActivity;
 import android.content.Context;
-import android.widget.TabHost;
-
 import ru.orangesoftware.financisto.R;
-import ru.orangesoftware.financisto.activity.MainActivity;
 import ru.orangesoftware.financisto.backup.DatabaseImport;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 
@@ -31,14 +27,14 @@ public class BackupImportTask extends ImportExportAsyncTask {
     }
 
     @Override
-    protected Object work(Context context, DatabaseAdapter db, String... params) throws Exception {
-        DatabaseImport.createFromFileBackup(context, db, params[0]).importDatabase();
-        return true;
+    protected String getSuccessMessage(Object result) {
+        return context.getString(R.string.restore_database_success);
     }
 
     @Override
-    protected String getSuccessMessage(Object result) {
-        return context.getString(R.string.restore_database_success);
+    protected Object work(Context context, DatabaseAdapter db, String... params) throws Exception {
+        DatabaseImport.createFromFileBackup(context, db, params[0]).importDatabase();
+        return true;
     }
 
 }

@@ -10,6 +10,10 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
+import static ru.orangesoftware.financisto.activity.UiUtils.applyTheme;
+import static ru.orangesoftware.financisto.utils.Utils.text;
+
 import android.Manifest;
 import android.content.Intent;
 import android.database.Cursor;
@@ -29,21 +33,17 @@ import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
-
 import com.mlsdev.rximagepicker.RxImageConverters;
 import com.mlsdev.rximagepicker.RxImagePicker;
 import com.mlsdev.rximagepicker.Sources;
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog;
 import com.wdullaer.materialdatetimepicker.time.TimePickerDialog;
-
+import greendroid.widget.QuickActionGrid;
+import greendroid.widget.QuickActionWidget;
 import java.text.DateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-
-import greendroid.widget.QuickActionGrid;
-import greendroid.widget.QuickActionWidget;
-import io.reactivex.disposables.Disposable;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.datetime.DateUtils;
 import ru.orangesoftware.financisto.db.DatabaseHelper.AccountColumns;
@@ -66,82 +66,105 @@ import ru.orangesoftware.financisto.view.AttributeView;
 import ru.orangesoftware.financisto.view.AttributeViewFactory;
 import ru.orangesoftware.financisto.widget.RateLayoutView;
 
-import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
-import static ru.orangesoftware.financisto.activity.UiUtils.applyTheme;
-import static ru.orangesoftware.financisto.utils.Utils.text;
-
-public abstract class AbstractTransactionActivity extends AbstractActivity implements CategorySelector.CategorySelectorListener {
+public abstract class AbstractTransactionActivity extends AbstractActivity
+        implements CategorySelector.CategorySelectorListener {
 
     public static final String TRAN_ID_EXTRA = "tranId";
+
     public static final String ACCOUNT_ID_EXTRA = "accountId";
+
     public static final String DUPLICATE_EXTRA = "isDuplicate";
+
     public static final String TEMPLATE_EXTRA = "isTemplate";
+
     public static final String DATETIME_EXTRA = "dateTimeExtra";
+
     public static final String NEW_FROM_TEMPLATE_EXTRA = "newFromTemplateExtra";
 
     private static final int RECURRENCE_REQUEST = 4003;
+
     private static final int NOTIFICATION_REQUEST = 4004;
+
     private static final int PICTURE_REQUEST = 4005;
 
     private static final TransactionStatus[] statuses = TransactionStatus.values();
 
-    protected RateLayoutView rateView;
-
-    protected EditText templateName;
-    protected TextView accountText;
-    protected Cursor accountCursor;
     protected ListAdapter accountAdapter;
 
-    protected Calendar dateTime;
-    protected ImageButton status;
-    protected Button dateText;
-    protected Button timeText;
+    protected Cursor accountCursor;
 
-    protected EditText noteText;
-    protected TextView recurText;
-    protected TextView notificationText;
+    protected TextView accountText;
 
-    private ImageView pictureView;
-
-    private CheckBox ccardPayment;
-
-    protected Account selectedAccount;
-
-    protected String recurrence;
-    protected String notificationOptions;
-
-    protected boolean isDuplicate = false;
-
-    protected ProjectSelector projectSelector;
-    protected LocationSelector locationSelector;
     protected CategorySelector categorySelector;
 
-    protected boolean isRememberLastAccount;
-    protected boolean isRememberLastCategory;
-    protected boolean isRememberLastLocation;
-    protected boolean isRememberLastProject;
-    protected boolean isShowNote;
-    protected boolean isShowTakePicture;
-    protected boolean isShowIsCCardPayment;
-    protected boolean isOpenCalculatorForTemplates;
+    protected Button dateText;
 
-    protected boolean isShowPayee = true;
-    protected AutoCompleteTextView payeeText;
-    protected SimpleCursorAdapter payeeAdapter;
+    protected Calendar dateTime;
 
     protected AttributeView deleteAfterExpired;
 
     protected DateFormat df;
+
+    protected boolean isDuplicate = false;
+
+    protected boolean isOpenCalculatorForTemplates;
+
+    protected boolean isRememberLastAccount;
+
+    protected boolean isRememberLastCategory;
+
+    protected boolean isRememberLastLocation;
+
+    protected boolean isRememberLastProject;
+
+    protected boolean isShowIsCCardPayment;
+
+    protected boolean isShowNote;
+
+    protected boolean isShowPayee = true;
+
+    protected boolean isShowTakePicture;
+
+    protected LocationSelector locationSelector;
+
+    protected EditText noteText;
+
+    protected String notificationOptions;
+
+    protected TextView notificationText;
+
+    protected SimpleCursorAdapter payeeAdapter;
+
+    protected AutoCompleteTextView payeeText;
+
+    protected ProjectSelector projectSelector;
+
+    protected RateLayoutView rateView;
+
+    protected TextView recurText;
+
+    protected String recurrence;
+
+    protected Account selectedAccount;
+
+    protected ImageButton status;
+
+    protected EditText templateName;
+
     protected DateFormat tf;
 
-    private QuickActionWidget pickImageActionGrid;
+    protected Button timeText;
 
     protected Transaction transaction = new Transaction();
 
+    private CheckBox ccardPayment;
+
+    private QuickActionWidget pickImageActionGrid;
+
+    private ImageView pictureView;
+
     public AbstractTransactionActivity() {
     }
-
-    protected abstract int getLayoutId();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -209,8 +232,10 @@ public abstract class AbstractTransactionActivity extends AbstractActivity imple
 
         status = findViewById(R.id.status);
         status.setOnClickListener(v -> {
-            ArrayAdapter<String> adapter = EnumUtils.createDropDownAdapter(AbstractTransactionActivity.this, statuses);
-            x.selectPosition(AbstractTransactionActivity.this, R.id.status, R.string.transaction_status, adapter, transaction.status.ordinal());
+            ArrayAdapter<String> adapter = EnumUtils
+                    .createDropDownAdapter(AbstractTransactionActivity.this, statuses);
+            x.selectPosition(AbstractTransactionActivity.this, R.id.status, R.string.transaction_status, adapter,
+                    transaction.status.ordinal());
         });
 
         dateText = findViewById(R.id.date);
@@ -261,8 +286,10 @@ public abstract class AbstractTransactionActivity extends AbstractActivity imple
         createCommonNodes(layout);
 
         if (transaction.isScheduled()) {
-            recurText = x.addListNode(layout, R.id.recurrence_pattern, R.string.recur, R.string.recur_interval_no_recur);
-            notificationText = x.addListNode(layout, R.id.notification, R.string.notification, R.string.notification_options_default);
+            recurText = x
+                    .addListNode(layout, R.id.recurrence_pattern, R.string.recur, R.string.recur_interval_no_recur);
+            notificationText = x.addListNode(layout, R.id.notification, R.string.notification,
+                    R.string.notification_options_default);
             Attribute sa = db.getSystemAttribute(SystemAttribute.DELETE_AFTER_EXPIRED);
             deleteAfterExpired = AttributeViewFactory.createViewForAttribute(this, sa);
             String value = transaction.getSystemAttribute(SystemAttribute.DELETE_AFTER_EXPIRED);
@@ -320,87 +347,97 @@ public abstract class AbstractTransactionActivity extends AbstractActivity imple
         Log.i("TransactionActivity", "onCreate " + (t1 - t0) + "ms");
     }
 
-    protected void setupPickImageActionGrid() {
-        pickImageActionGrid = new QuickActionGrid(this);
-        pickImageActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_photo_camera, R.string.image_pick_camera));
-        pickImageActionGrid.addQuickAction(new MyQuickAction(this, R.drawable.ic_photo_library, R.string.image_pick_images));
-        pickImageActionGrid.setOnQuickActionClickListener((widget, position) -> {
-            switch (position) {
-                case 0:
-                    requestImage(Sources.CAMERA);
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        projectSelector.onActivityResult(requestCode, resultCode, data);
+        categorySelector.onActivityResult(requestCode, resultCode, data);
+        locationSelector.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            switch (requestCode) {
+                case RECURRENCE_REQUEST:
+                    String recurrence = data.getStringExtra(RecurrenceActivity.RECURRENCE_PATTERN);
+                    setRecurrence(recurrence);
                     break;
-                case 1:
-                    requestImage(Sources.GALLERY);
+                case NOTIFICATION_REQUEST:
+                    String notificationOptions = data
+                            .getStringExtra(NotificationOptionsActivity.NOTIFICATION_OPTIONS);
+                    setNotification(notificationOptions);
+                    break;
+                default:
                     break;
             }
-        });
-    }
-
-    protected void requestImage(Sources source) {
-        transaction.blobKey = null;
-        RxImagePicker.with(this).requestImage(source)
-                .flatMap(uri -> RxImageConverters.uriToFile(this, uri, PicturesUtil.createEmptyImageFile()))
-                .subscribe(file -> selectPicture(file.getName()));
-    }
-
-    protected void createPayeeNode(LinearLayout layout) {
-        payeeAdapter = TransactionUtils.createPayeeAdapter(this, db);
-        payeeText = new AutoCompleteTextView(this);
-        payeeText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS |
-                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS |
-                InputType.TYPE_TEXT_VARIATION_FILTER);
-        payeeText.setThreshold(1);
-        payeeText.setOnFocusChangeListener((view, hasFocus) -> {
-            if (hasFocus) {
-                payeeText.setAdapter(payeeAdapter);
-                payeeText.selectAll();
+        } else {
+            if (requestCode == PICTURE_REQUEST) {
+                removePicture();
             }
-        });
-        x.addEditNode(layout, R.string.payee, payeeText);
-    }
-
-    protected abstract void fetchCategories();
-
-    private boolean saveAndFinish() {
-        long id = save();
-        if (id > 0) {
-            Intent data = new Intent();
-            data.putExtra(TransactionColumns._id.name(), id);
-            setResult(RESULT_OK, data);
-            finish();
-            return true;
         }
-        return false;
-    }
-
-    private long save() {
-        if (onOKClicked()) {
-            boolean isNew = transaction.id == -1;
-            long id = db.insertOrUpdate(transaction, getAttributes());
-            if (isNew) {
-                MyPreferences.setLastAccount(this, transaction.fromAccountId);
-            }
-            AccountWidget.updateWidgets(this);
-            return id;
-        }
-        return -1;
-    }
-
-    private List<TransactionAttribute> getAttributes() {
-        List<TransactionAttribute> attributes = categorySelector.getAttributes();
-        if (deleteAfterExpired != null) {
-            TransactionAttribute ta = deleteAfterExpired.newTransactionAttribute();
-            attributes.add(ta);
-        }
-        return attributes;
-    }
-
-    protected void internalOnCreate() {
     }
 
     @Override
-    protected boolean shouldLock() {
-        return MyPreferences.isPinProtectedNewTransaction(this);
+    public void onCategorySelected(Category category, boolean selectLast) {
+        addOrRemoveSplits();
+        categorySelector.addAttributes(transaction);
+        switchIncomeExpenseButton(category);
+        if (selectLast && isRememberLastLocation) {
+            locationSelector.selectEntity(category.lastLocationId);
+        }
+        if (selectLast && isRememberLastProject) {
+            projectSelector.selectEntity(category.lastProjectId);
+        }
+        projectSelector.setNodeVisible(!category.isSplit());
+    }
+
+    @Override
+    public void onSelectedId(int id, long selectedId) {
+        categorySelector.onSelectedId(id, selectedId);
+        switch (id) {
+            case R.id.account:
+                selectAccount(selectedId);
+                break;
+        }
+    }
+
+    @Override
+    public void onSelectedPos(int id, int selectedPos) {
+        projectSelector.onSelectedPos(id, selectedPos);
+        locationSelector.onSelectedPos(id, selectedPos);
+        switch (id) {
+            case R.id.status:
+                selectStatus(statuses[selectedPos]);
+                break;
+        }
+    }
+
+    protected void addOrRemoveSplits() {
+    }
+
+    protected void commonEditTransaction(Transaction transaction) {
+        selectStatus(transaction.status);
+        categorySelector.selectCategory(transaction.categoryId, false);
+        projectSelector.selectEntity(transaction.projectId);
+        locationSelector.selectEntity(transaction.locationId);
+        setDateTime(transaction.dateTime);
+        if (isShowNote) {
+            noteText.setText(transaction.note);
+        }
+        if (transaction.isTemplate()) {
+            templateName.setText(transaction.templateName);
+        }
+        if (transaction.isScheduled()) {
+            setRecurrence(transaction.recurrence);
+            setNotification(transaction.notificationOptions);
+        }
+        if (isShowTakePicture) {
+            selectPicture(transaction.attachedPicture);
+        }
+        if (isShowIsCCardPayment) {
+            setIsCCardPayment(transaction.isCCardPayment);
+        }
+
+        if (transaction.isCreatedFromTemlate() && isOpenCalculatorForTemplates) {
+            rateView.openFromAmountCalculator();
+        }
     }
 
     protected void createCommonNodes(LinearLayout layout) {
@@ -424,7 +461,8 @@ public abstract class AbstractTransactionActivity extends AbstractActivity imple
             }
         }
         if (isShowTakePicture && transaction.isNotTemplateLike()) {
-            pictureView = x.addPictureNodeMinus(this, layout, R.id.attach_picture, R.id.delete_picture, R.string.attach_picture, R.string.new_picture);
+            pictureView = x.addPictureNodeMinus(this, layout, R.id.attach_picture, R.id.delete_picture,
+                    R.string.attach_picture, R.string.new_picture);
         }
         if (isShowIsCCardPayment) {
             // checkbox to register if the transaction is a credit card payment.
@@ -436,7 +474,34 @@ public abstract class AbstractTransactionActivity extends AbstractActivity imple
 
     protected abstract void createListNodes(LinearLayout layout);
 
-    protected abstract boolean onOKClicked();
+    protected void createPayeeNode(LinearLayout layout) {
+        payeeAdapter = TransactionUtils.createPayeeAdapter(this, db);
+        payeeText = new AutoCompleteTextView(this);
+        payeeText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS |
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS |
+                InputType.TYPE_TEXT_VARIATION_FILTER);
+        payeeText.setThreshold(1);
+        payeeText.setOnFocusChangeListener((view, hasFocus) -> {
+            if (hasFocus) {
+                payeeText.setAdapter(payeeAdapter);
+                payeeText.selectAll();
+            }
+        });
+        x.addEditNode(layout, R.string.payee, payeeText);
+    }
+
+    protected abstract void editTransaction(Transaction transaction);
+
+    protected abstract void fetchCategories();
+
+    protected abstract int getLayoutId();
+
+    protected long getSelectedAccountId() {
+        return selectedAccount != null ? selectedAccount.id : -1;
+    }
+
+    protected void internalOnCreate() {
+    }
 
     @Override
     protected void onClick(View v, int id) {
@@ -479,30 +544,13 @@ public abstract class AbstractTransactionActivity extends AbstractActivity imple
         }
     }
 
-    @Override
-    public void onSelectedPos(int id, int selectedPos) {
-        projectSelector.onSelectedPos(id, selectedPos);
-        locationSelector.onSelectedPos(id, selectedPos);
-        switch (id) {
-            case R.id.status:
-                selectStatus(statuses[selectedPos]);
-                break;
-        }
-    }
+    protected abstract boolean onOKClicked();
 
-    @Override
-    public void onSelectedId(int id, long selectedId) {
-        categorySelector.onSelectedId(id, selectedId);
-        switch (id) {
-            case R.id.account:
-                selectAccount(selectedId);
-                break;
-        }
-    }
-
-    private void selectStatus(TransactionStatus transactionStatus) {
-        transaction.status = transactionStatus;
-        status.setImageResource(transactionStatus.iconId);
+    protected void requestImage(Sources source) {
+        transaction.blobKey = null;
+        RxImagePicker.with(this).requestImage(source)
+                .flatMap(uri -> RxImageConverters.uriToFile(this, uri, PicturesUtil.createEmptyImageFile()))
+                .subscribe(file -> selectPicture(file.getName()));
     }
 
     protected Account selectAccount(long accountId) {
@@ -519,101 +567,18 @@ public abstract class AbstractTransactionActivity extends AbstractActivity imple
         return a;
     }
 
-    protected long getSelectedAccountId() {
-        return selectedAccount != null ? selectedAccount.id : -1;
-    }
-
-    @Override
-    public void onCategorySelected(Category category, boolean selectLast) {
-        addOrRemoveSplits();
-        categorySelector.addAttributes(transaction);
-        switchIncomeExpenseButton(category);
-        if (selectLast && isRememberLastLocation) {
-            locationSelector.selectEntity(category.lastLocationId);
-        }
-        if (selectLast && isRememberLastProject) {
-            projectSelector.selectEntity(category.lastProjectId);
-        }
-        projectSelector.setNodeVisible(!category.isSplit());
-    }
-
-    protected void addOrRemoveSplits() {
-    }
-
-    protected void switchIncomeExpenseButton(Category category) {
-
-    }
-
-    private void setRecurrence(String recurrence) {
-        this.recurrence = recurrence;
-        if (recurrence == null) {
-            recurText.setText(R.string.recur_interval_no_recur);
-            dateText.setEnabled(true);
-            timeText.setEnabled(true);
-        } else {
-            dateText.setEnabled(false);
-            timeText.setEnabled(false);
-            Recurrence r = Recurrence.parse(recurrence);
-            recurText.setText(r.toInfoString(this));
+    protected void selectPayee(long payeeId) {
+        if (isShowPayee) {
+            Payee p = db.get(Payee.class, payeeId);
+            selectPayee(p);
         }
     }
 
-    private void setNotification(String notificationOptions) {
-        this.notificationOptions = notificationOptions;
-        if (notificationOptions == null) {
-            notificationText.setText(R.string.notification_options_default);
-        } else {
-            NotificationOptions o = NotificationOptions.parse(notificationOptions);
-            notificationText.setText(o.toInfoString(this));
+    protected void selectPayee(Payee p) {
+        if (p != null) {
+            payeeText.setText(p.title);
+            transaction.payeeId = p.id;
         }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        projectSelector.onActivityResult(requestCode, resultCode, data);
-        categorySelector.onActivityResult(requestCode, resultCode, data);
-        locationSelector.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            switch (requestCode) {
-                case RECURRENCE_REQUEST:
-                    String recurrence = data.getStringExtra(RecurrenceActivity.RECURRENCE_PATTERN);
-                    setRecurrence(recurrence);
-                    break;
-                case NOTIFICATION_REQUEST:
-                    String notificationOptions = data.getStringExtra(NotificationOptionsActivity.NOTIFICATION_OPTIONS);
-                    setNotification(notificationOptions);
-                    break;
-                default:
-                    break;
-            }
-        } else {
-            if (requestCode == PICTURE_REQUEST) {
-                removePicture();
-            }
-        }
-    }
-
-    private void selectPicture(String pictureFileName) {
-        if (pictureView == null) {
-            return;
-        }
-        if (pictureFileName == null) {
-            return;
-        }
-        PicturesUtil.showImage(this, pictureView, pictureFileName);
-        pictureView.setTag(R.id.attached_picture, pictureFileName);
-        transaction.attachedPicture = pictureFileName;
-    }
-
-    private void removePicture() {
-        if (pictureView == null) {
-            return;
-        }
-        transaction.attachedPicture = null;
-        transaction.blobKey = null;
-        pictureView.setImageBitmap(null);
-        pictureView.setTag(R.id.attached_picture, null);
     }
 
     protected void setDateTime(long date) {
@@ -623,39 +588,31 @@ public abstract class AbstractTransactionActivity extends AbstractActivity imple
         timeText.setText(tf.format(d));
     }
 
-    protected abstract void editTransaction(Transaction transaction);
-
-    protected void commonEditTransaction(Transaction transaction) {
-        selectStatus(transaction.status);
-        categorySelector.selectCategory(transaction.categoryId, false);
-        projectSelector.selectEntity(transaction.projectId);
-        locationSelector.selectEntity(transaction.locationId);
-        setDateTime(transaction.dateTime);
-        if (isShowNote) {
-            noteText.setText(transaction.note);
-        }
-        if (transaction.isTemplate()) {
-            templateName.setText(transaction.templateName);
-        }
-        if (transaction.isScheduled()) {
-            setRecurrence(transaction.recurrence);
-            setNotification(transaction.notificationOptions);
-        }
-        if (isShowTakePicture) {
-            selectPicture(transaction.attachedPicture);
-        }
-        if (isShowIsCCardPayment) {
-            setIsCCardPayment(transaction.isCCardPayment);
-        }
-
-        if (transaction.isCreatedFromTemlate() && isOpenCalculatorForTemplates) {
-            rateView.openFromAmountCalculator();
-        }
+    protected void setupPickImageActionGrid() {
+        pickImageActionGrid = new QuickActionGrid(this);
+        pickImageActionGrid
+                .addQuickAction(new MyQuickAction(this, R.drawable.ic_photo_camera, R.string.image_pick_camera));
+        pickImageActionGrid
+                .addQuickAction(new MyQuickAction(this, R.drawable.ic_photo_library, R.string.image_pick_images));
+        pickImageActionGrid.setOnQuickActionClickListener((widget, position) -> {
+            switch (position) {
+                case 0:
+                    requestImage(Sources.CAMERA);
+                    break;
+                case 1:
+                    requestImage(Sources.GALLERY);
+                    break;
+            }
+        });
     }
 
-    private void setIsCCardPayment(int isCCardPaymentValue) {
-        transaction.isCCardPayment = isCCardPaymentValue;
-        ccardPayment.setChecked(isCCardPaymentValue == 1);
+    @Override
+    protected boolean shouldLock() {
+        return MyPreferences.isPinProtectedNewTransaction(this);
+    }
+
+    protected void switchIncomeExpenseButton(Category category) {
+
     }
 
     protected void updateTransactionFromUI(Transaction transaction) {
@@ -682,17 +639,93 @@ public abstract class AbstractTransactionActivity extends AbstractActivity imple
         }
     }
 
-    protected void selectPayee(long payeeId) {
-        if (isShowPayee) {
-            Payee p = db.get(Payee.class, payeeId);
-            selectPayee(p);
+    private List<TransactionAttribute> getAttributes() {
+        List<TransactionAttribute> attributes = categorySelector.getAttributes();
+        if (deleteAfterExpired != null) {
+            TransactionAttribute ta = deleteAfterExpired.newTransactionAttribute();
+            attributes.add(ta);
+        }
+        return attributes;
+    }
+
+    private void removePicture() {
+        if (pictureView == null) {
+            return;
+        }
+        transaction.attachedPicture = null;
+        transaction.blobKey = null;
+        pictureView.setImageBitmap(null);
+        pictureView.setTag(R.id.attached_picture, null);
+    }
+
+    private long save() {
+        if (onOKClicked()) {
+            boolean isNew = transaction.id == -1;
+            long id = db.insertOrUpdate(transaction, getAttributes());
+            if (isNew) {
+                MyPreferences.setLastAccount(this, transaction.fromAccountId);
+            }
+            AccountWidget.updateWidgets(this);
+            return id;
+        }
+        return -1;
+    }
+
+    private boolean saveAndFinish() {
+        long id = save();
+        if (id > 0) {
+            Intent data = new Intent();
+            data.putExtra(TransactionColumns._id.name(), id);
+            setResult(RESULT_OK, data);
+            finish();
+            return true;
+        }
+        return false;
+    }
+
+    private void selectPicture(String pictureFileName) {
+        if (pictureView == null) {
+            return;
+        }
+        if (pictureFileName == null) {
+            return;
+        }
+        PicturesUtil.showImage(this, pictureView, pictureFileName);
+        pictureView.setTag(R.id.attached_picture, pictureFileName);
+        transaction.attachedPicture = pictureFileName;
+    }
+
+    private void selectStatus(TransactionStatus transactionStatus) {
+        transaction.status = transactionStatus;
+        status.setImageResource(transactionStatus.iconId);
+    }
+
+    private void setIsCCardPayment(int isCCardPaymentValue) {
+        transaction.isCCardPayment = isCCardPaymentValue;
+        ccardPayment.setChecked(isCCardPaymentValue == 1);
+    }
+
+    private void setNotification(String notificationOptions) {
+        this.notificationOptions = notificationOptions;
+        if (notificationOptions == null) {
+            notificationText.setText(R.string.notification_options_default);
+        } else {
+            NotificationOptions o = NotificationOptions.parse(notificationOptions);
+            notificationText.setText(o.toInfoString(this));
         }
     }
 
-    protected void selectPayee(Payee p) {
-        if (p != null) {
-            payeeText.setText(p.title);
-            transaction.payeeId = p.id;
+    private void setRecurrence(String recurrence) {
+        this.recurrence = recurrence;
+        if (recurrence == null) {
+            recurText.setText(R.string.recur_interval_no_recur);
+            dateText.setEnabled(true);
+            timeText.setEnabled(true);
+        } else {
+            dateText.setEnabled(false);
+            timeText.setEnabled(false);
+            Recurrence r = Recurrence.parse(recurrence);
+            recurText.setText(r.toInfoString(this));
         }
     }
 

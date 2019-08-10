@@ -15,4 +15,5 @@ package ru.orangesoftware.financisto.activity;
  * Time: 7:18 PM
  */
 public class AccountWidget3x1 extends AccountWidget {
+
 }

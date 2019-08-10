@@ -20,12 +20,18 @@ import ru.orangesoftware.financisto.db.DatabaseHelper;
 public class ExchangeRate implements Comparable<ExchangeRate> {
 
     public static final ExchangeRate ONE = new ExchangeRate();
+
     public static final ExchangeRate NA = new ExchangeRate();
 
-    static {
-        ONE.rate = 1.0d;
-        NA.error = "N/A";
-    }
+    public long date;
+
+    public String error;
+
+    public long fromCurrencyId;
+
+    public double rate;
+
+    public long toCurrencyId;
 
     public static ExchangeRate fromCursor(Cursor c) {
         ExchangeRate r = new ExchangeRate();
@@ -34,6 +40,30 @@ public class ExchangeRate implements Comparable<ExchangeRate> {
         r.date = c.getLong(DatabaseHelper.ExchangeRateColumns.rate_date.ordinal());
         r.rate = c.getFloat(DatabaseHelper.ExchangeRateColumns.rate.ordinal());
         return r;
+    }
+
+    @Override
+    public int compareTo(ExchangeRate that) {
+        long d0 = this.date;
+        long d1 = that.date;
+        return d0 > d1 ? -1 : (d0 < d1 ? 1 : 0);
+    }
+
+    public ExchangeRate flip() {
+        ExchangeRate r = new ExchangeRate();
+        r.fromCurrencyId = toCurrencyId;
+        r.toCurrencyId = fromCurrencyId;
+        r.date = date;
+        r.rate = rate == 0 ? 0 : 1.0d / rate;
+        return r;
+    }
+
+    public String getErrorMessage() {
+        return error != null ? error : "";
+    }
+
+    public boolean isOk() {
+        return error == null;
     }
 
     public ContentValues toValues() {
@@ -45,34 +75,9 @@ public class ExchangeRate implements Comparable<ExchangeRate> {
         return values;
     }
 
-    public long fromCurrencyId;
-    public long toCurrencyId;
-    public long date;
-    public double rate;
-    public String error;
-
-    public ExchangeRate flip() {
-        ExchangeRate r = new ExchangeRate();
-        r.fromCurrencyId = toCurrencyId;
-        r.toCurrencyId = fromCurrencyId;
-        r.date = date;
-        r.rate = rate == 0 ? 0 : 1.0d/rate;
-        return r;
-    }
-
-    @Override
-    public int compareTo(ExchangeRate that) {
-        long d0 = this.date;
-        long d1 = that.date;
-        return d0 > d1 ? -1 : (d0 < d1 ? 1 : 0);
-    }
-
-    public boolean isOk() {
-        return error == null;
-    }
-
-    public String getErrorMessage() {
-        return error != null ? error : "";
+    static {
+        ONE.rate = 1.0d;
+        NA.error = "N/A";
     }
 
 }

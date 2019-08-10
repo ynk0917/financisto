@@ -11,8 +11,9 @@ import ru.orangesoftware.financisto.model.Currency;
  */
 public class AccountBuilder {
 
-    private final DatabaseAdapter db;
     private final Account a = new Account();
+
+    private final DatabaseAdapter db;
 
     public static Account createDefault(DatabaseAdapter db) {
         Currency c = CurrencyBuilder.createDefault(db);
@@ -27,37 +28,17 @@ public class AccountBuilder {
         return new AccountBuilder(db);
     }
 
-    public AccountBuilder id(long v) {
-        a.id = v;
-        return this;
-    }
-
     private AccountBuilder(DatabaseAdapter db) {
         this.db = db;
     }
 
-    public AccountBuilder title(String title) {
-        a.title = title;
-        return this;
+    public Account create() {
+        db.saveAccount(a);
+        return a;
     }
 
     public AccountBuilder currency(Currency c) {
         a.currency = c;
-        return this;
-    }
-
-    public AccountBuilder number(String n) {
-        a.number = n;
-        return this;
-    }
-
-    public AccountBuilder issuer(String v) {
-        a.issuer = v;
-        return this;
-    }
-    
-    public AccountBuilder total(long amount) {
-        a.totalAmount = amount;
         return this;
     }
 
@@ -66,13 +47,33 @@ public class AccountBuilder {
         return this;
     }
 
+    public AccountBuilder id(long v) {
+        a.id = v;
+        return this;
+    }
+
     public AccountBuilder inactive() {
         a.isActive = false;
         return this;
     }
 
-    public Account create() {
-        db.saveAccount(a);
-        return a;
+    public AccountBuilder issuer(String v) {
+        a.issuer = v;
+        return this;
+    }
+
+    public AccountBuilder number(String n) {
+        a.number = n;
+        return this;
+    }
+
+    public AccountBuilder title(String title) {
+        a.title = title;
+        return this;
+    }
+
+    public AccountBuilder total(long amount) {
+        a.totalAmount = amount;
+        return this;
     }
 }

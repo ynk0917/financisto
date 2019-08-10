@@ -10,7 +10,6 @@ package ru.orangesoftware.financisto.export.qif;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.util.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -25,6 +24,13 @@ public class QifBufferedReader {
         this.r = r;
     }
 
+    public String peekLine() throws IOException {
+        r.mark(256);
+        String peek = readLine();
+        r.reset();
+        return peek;
+    }
+
     public String readLine() throws IOException {
         while (true) {
             String line = r.readLine();
@@ -36,13 +42,6 @@ public class QifBufferedReader {
                 return line;
             }
         }
-    }
-
-    public String peekLine() throws IOException {
-        r.mark(256);
-        String peek = readLine();
-        r.reset();
-        return peek;
     }
 
     private String trim(String s) {

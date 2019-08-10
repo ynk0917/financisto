@@ -23,9 +23,10 @@ public enum IncomeExpense implements EntityEnum {
     EXPENSE(R.string.report_income_expense_expense, R.drawable.ic_menu_report_expense),
     INCOME(R.string.report_income_expense_income, R.drawable.ic_menu_report_income),
     SUMMARY(R.string.report_income_expense_summary, R.drawable.ic_menu_report_summary);
-    
-    private final int titleId;
+
     private final int iconId;
+
+    private final int titleId;
 
     private IncomeExpense(int titleId, int iconId) {
         this.titleId = titleId;
@@ -33,13 +34,13 @@ public enum IncomeExpense implements EntityEnum {
     }
 
     @Override
-    public int getTitleId() {
-        return titleId;
+    public int getIconId() {
+        return iconId;
     }
 
     @Override
-    public int getIconId() {
-        return iconId;
+    public int getTitleId() {
+        return titleId;
     }
 
 }

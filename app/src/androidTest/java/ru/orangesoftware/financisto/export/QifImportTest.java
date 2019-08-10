@@ -8,19 +8,28 @@
 
 package ru.orangesoftware.financisto.export;
 
+import static ru.orangesoftware.financisto.export.qif.QifDateFormat.EU_FORMAT;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import ru.orangesoftware.financisto.db.AbstractDbTest;
-import ru.orangesoftware.financisto.export.qif.*;
-import ru.orangesoftware.financisto.model.*;
+import ru.orangesoftware.financisto.export.qif.QifCategory;
+import ru.orangesoftware.financisto.export.qif.QifDateFormat;
+import ru.orangesoftware.financisto.export.qif.QifImport;
+import ru.orangesoftware.financisto.export.qif.QifImportOptions;
+import ru.orangesoftware.financisto.export.qif.QifParser;
+import ru.orangesoftware.financisto.model.Account;
+import ru.orangesoftware.financisto.model.AccountType;
+import ru.orangesoftware.financisto.model.Category;
+import ru.orangesoftware.financisto.model.CategoryTree;
 import ru.orangesoftware.financisto.model.Currency;
+import ru.orangesoftware.financisto.model.Project;
 import ru.orangesoftware.financisto.model.TransactionInfo;
 import ru.orangesoftware.financisto.test.DateTime;
 import ru.orangesoftware.orb.Expressions;
 import ru.orangesoftware.orb.Query;
-
-import java.io.IOException;
-import java.util.*;
-
-import static ru.orangesoftware.financisto.export.qif.QifDateFormat.EU_FORMAT;
 
 /**
  * Created by IntelliJ IDEA.
@@ -29,23 +38,14 @@ import static ru.orangesoftware.financisto.export.qif.QifDateFormat.EU_FORMAT;
  */
 public class QifImportTest extends AbstractDbTest {
 
-    QifParserTest qifParserTest = new QifParserTest();
     QifImport qifImport;
+
+    QifParserTest qifParserTest = new QifParserTest();
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
         db.db().execSQL("insert into currency(_id,title,name,symbol) values(0,'Default','?','$')");
-    }
-
-    public void test_should_import_empty_account() throws IOException {
-        qifParserTest.test_should_parse_empty_account();
-        doImport();
-
-        List<Account> accounts = db.getAllAccountsList();
-        assertEquals(1, accounts.size());
-        assertEquals("My Cash Account", accounts.get(0).title);
-        assertEquals(AccountType.CASH.name(), accounts.get(0).type);
     }
 
     public void test_should_import_a_couple_of_empty_accounts() throws IOException {
@@ -60,6 +60,30 @@ public class QifImportTest extends AbstractDbTest {
         assertEquals(AccountType.CASH.name(), accounts.get(0).type);
         assertEquals("My Bank Account", accounts.get(1).title);
         assertEquals(AccountType.BANK.name(), accounts.get(1).type);
+    }
+
+    public void test_should_import_account_with_a_couple_of_transactions() throws Exception {
+        qifParserTest.test_should_parse_account_with_a_couple_of_transactions();
+        doImport();
+
+        List<Account> accounts = db.getAllAccountsList();
+        assertEquals(1, accounts.size());
+
+        List<TransactionInfo> transactions = db.getTransactionsForAccount(accounts.get(0).id);
+        assertEquals(2, transactions.size());
+
+        TransactionInfo t = transactions.get(0);
+        assertEquals(DateTime.date(2011, 2, 8).atMidnight().asLong(), t.dateTime);
+        assertEquals(1000, t.fromAmount);
+        assertEquals("P1", t.category.title);
+        assertNull(t.payee);
+
+        t = transactions.get(1);
+        assertEquals(DateTime.date(2011, 2, 7).atMidnight().asLong(), t.dateTime);
+        assertEquals(-2056, t.fromAmount);
+        assertEquals("Payee 1", t.payee.title);
+        assertEquals("c1", t.category.title);
+        assertEquals("Some note here...", t.note);
     }
 
     public void test_should_import_categories() throws Exception {
@@ -141,132 +165,36 @@ public class QifImportTest extends AbstractDbTest {
         assertEquals("Class2", t.project.title);
     }
 
-    public void test_should_import_account_with_a_couple_of_transactions() throws Exception {
-        qifParserTest.test_should_parse_account_with_a_couple_of_transactions();
-        doImport();
-
-        List<Account> accounts = db.getAllAccountsList();
-        assertEquals(1, accounts.size());
-
-        List<TransactionInfo> transactions = db.getTransactionsForAccount(accounts.get(0).id);
-        assertEquals(2, transactions.size());
-
-        TransactionInfo t = transactions.get(0);
-        assertEquals(DateTime.date(2011, 2, 8).atMidnight().asLong(), t.dateTime);
-        assertEquals(1000, t.fromAmount);
-        assertEquals("P1", t.category.title);
-        assertNull(t.payee);
-
-        t = transactions.get(1);
-        assertEquals(DateTime.date(2011, 2, 7).atMidnight().asLong(), t.dateTime);
-        assertEquals(-2056, t.fromAmount);
-        assertEquals("Payee 1", t.payee.title);
-        assertEquals("c1", t.category.title);
-        assertEquals("Some note here...", t.note);
-    }
-
-    public void test_should_import_multiple_accounts() throws Exception {
-        qifParserTest.test_should_parse_multiple_accounts();
-        doImport();
-
-        List<Account> accounts = db.getAllAccountsList();
-        assertEquals(2, accounts.size());
-
-        Account a = accounts.get(0);
-        assertEquals("My Bank Account", a.title);
-        assertEquals(AccountType.BANK.name(), a.type);
-
-        List<TransactionInfo> transactions = db.getTransactionsForAccount(a.id);
-        assertEquals(2, transactions.size());
-
-        TransactionInfo t = transactions.get(0);
-        assertEquals(DateTime.date(2011, 2, 8).atMidnight().asLong(), t.dateTime);
-        assertEquals(-2000, t.fromAmount);
-
-        t = transactions.get(1);
-        assertEquals(DateTime.date(2011, 1, 2).atMidnight().asLong(), t.dateTime);
-        assertEquals(5400, t.fromAmount);
-
-        a = accounts.get(1);
-        assertEquals("My Cash Account", a.title);
-        assertEquals(AccountType.CASH.name(), a.type);
-
-        transactions = db.getTransactionsForAccount(a.id);
-        assertEquals(3, transactions.size());
-
-        t = transactions.get(0);
-        assertEquals(DateTime.date(2011, 2, 8).atMidnight().asLong(), t.dateTime);
-        assertEquals(1000, t.fromAmount);
-
-        t = transactions.get(1);
-        assertEquals(DateTime.date(2011, 2, 7).atMidnight().asLong(), t.dateTime);
-        assertEquals(-2345, t.fromAmount);
-
-        t = transactions.get(2);
-        assertEquals(DateTime.date(2011, 1, 1).atMidnight().asLong(), t.dateTime);
-        assertEquals(-6780, t.fromAmount);
-    }
-
-    public void test_should_import_transfers() throws Exception {
-        qifParserTest.test_should_parse_transfers();
-        doImport();
-
-        List<Account> accounts = db.getAllAccountsList();
-        assertEquals(2, accounts.size());
-
-        Account a = accounts.get(0);
-        assertEquals("My Bank Account", a.title);
-        assertEquals(AccountType.BANK.name(), a.type);
-
-        List<TransactionInfo> transactions = db.getTransactionsForAccount(a.id);
-        assertEquals(1, transactions.size());
-
-        TransactionInfo t = transactions.get(0);
-        assertTrue("Should be a transfer from bank to cash", t.isTransfer());
-        assertEquals(DateTime.date(2011, 2, 8).atMidnight().asLong(), t.dateTime);
-        assertEquals("My Bank Account", t.fromAccount.title);
-        assertEquals(-2000, t.fromAmount);
-        assertEquals("My Cash Account", t.toAccount.title);
-        assertEquals(2000, t.toAmount);
-        assertEquals("Vacation", t.project.title);
-
-        a = accounts.get(1);
-        assertEquals("My Cash Account", a.title);
-        assertEquals(AccountType.CASH.name(), a.type);
-
-        transactions = db.getTransactionsForAccount(a.id);
-        assertEquals(0, transactions.size());
-    }
-
-    public void test_should_import_convert_unknown_transfers_into_regular_transactions_with_a_special_note() throws Exception {
+    public void test_should_import_convert_unknown_transfers_into_regular_transactions_with_a_special_note()
+            throws Exception {
         qifParserTest.parseQif(
-            "!Account\n" +
-            "NMy Cash Account\n" +
-            "TCash\n" +
-            "^\n" +
-            "!Type:Cash\n" +
-            "D08/02/2011\n" +
-            "T25.00\n" +
-            "L[My Bank Account]\n" +
-            "^\n" +
-            "D07/02/2011\n" +
-            "T55.00\n" +
-            "L[Some Account 1]\n" +
-            "^\n" +
-            "!Account\n" +
-            "NMy Bank Account\n" +
-            "TBank\n" +
-            "^\n" +
-            "!Type:Bank\n" +
-            "D08/02/2011\n" +
-            "T-20.00\n" +
-            "MNote on transfer\n" +
-            "L[Some Account 2]\n" +
-            "^\n"+
-            "D07/02/2011\n" +
-            "T-30.00\n" +
-            "L[My Cash Account]\n" +
-            "^\n");
+                "!Account\n" +
+                        "NMy Cash Account\n" +
+                        "TCash\n" +
+                        "^\n" +
+                        "!Type:Cash\n" +
+                        "D08/02/2011\n" +
+                        "T25.00\n" +
+                        "L[My Bank Account]\n" +
+                        "^\n" +
+                        "D07/02/2011\n" +
+                        "T55.00\n" +
+                        "L[Some Account 1]\n" +
+                        "^\n" +
+                        "!Account\n" +
+                        "NMy Bank Account\n" +
+                        "TBank\n" +
+                        "^\n" +
+                        "!Type:Bank\n" +
+                        "D08/02/2011\n" +
+                        "T-20.00\n" +
+                        "MNote on transfer\n" +
+                        "L[Some Account 2]\n" +
+                        "^\n" +
+                        "D07/02/2011\n" +
+                        "T-30.00\n" +
+                        "L[My Cash Account]\n" +
+                        "^\n");
         doImport();
 
         List<Account> accounts = db.getAllAccountsList();
@@ -313,6 +241,58 @@ public class QifImportTest extends AbstractDbTest {
         assertEquals("My Cash Account", t.fromAccount.title);
         assertEquals(5500, t.fromAmount);
         assertEquals("Transfer: Some Account 1", t.note);
+    }
+
+    public void test_should_import_empty_account() throws IOException {
+        qifParserTest.test_should_parse_empty_account();
+        doImport();
+
+        List<Account> accounts = db.getAllAccountsList();
+        assertEquals(1, accounts.size());
+        assertEquals("My Cash Account", accounts.get(0).title);
+        assertEquals(AccountType.CASH.name(), accounts.get(0).type);
+    }
+
+    public void test_should_import_multiple_accounts() throws Exception {
+        qifParserTest.test_should_parse_multiple_accounts();
+        doImport();
+
+        List<Account> accounts = db.getAllAccountsList();
+        assertEquals(2, accounts.size());
+
+        Account a = accounts.get(0);
+        assertEquals("My Bank Account", a.title);
+        assertEquals(AccountType.BANK.name(), a.type);
+
+        List<TransactionInfo> transactions = db.getTransactionsForAccount(a.id);
+        assertEquals(2, transactions.size());
+
+        TransactionInfo t = transactions.get(0);
+        assertEquals(DateTime.date(2011, 2, 8).atMidnight().asLong(), t.dateTime);
+        assertEquals(-2000, t.fromAmount);
+
+        t = transactions.get(1);
+        assertEquals(DateTime.date(2011, 1, 2).atMidnight().asLong(), t.dateTime);
+        assertEquals(5400, t.fromAmount);
+
+        a = accounts.get(1);
+        assertEquals("My Cash Account", a.title);
+        assertEquals(AccountType.CASH.name(), a.type);
+
+        transactions = db.getTransactionsForAccount(a.id);
+        assertEquals(3, transactions.size());
+
+        t = transactions.get(0);
+        assertEquals(DateTime.date(2011, 2, 8).atMidnight().asLong(), t.dateTime);
+        assertEquals(1000, t.fromAmount);
+
+        t = transactions.get(1);
+        assertEquals(DateTime.date(2011, 2, 7).atMidnight().asLong(), t.dateTime);
+        assertEquals(-2345, t.fromAmount);
+
+        t = transactions.get(2);
+        assertEquals(DateTime.date(2011, 1, 1).atMidnight().asLong(), t.dateTime);
+        assertEquals(-6780, t.fromAmount);
     }
 
     public void test_should_import_splits() throws Exception {
@@ -389,6 +369,47 @@ public class QifImportTest extends AbstractDbTest {
         assertEquals(100000, s.toAmount);
     }
 
+    public void test_should_import_transfers() throws Exception {
+        qifParserTest.test_should_parse_transfers();
+        doImport();
+
+        List<Account> accounts = db.getAllAccountsList();
+        assertEquals(2, accounts.size());
+
+        Account a = accounts.get(0);
+        assertEquals("My Bank Account", a.title);
+        assertEquals(AccountType.BANK.name(), a.type);
+
+        List<TransactionInfo> transactions = db.getTransactionsForAccount(a.id);
+        assertEquals(1, transactions.size());
+
+        TransactionInfo t = transactions.get(0);
+        assertTrue("Should be a transfer from bank to cash", t.isTransfer());
+        assertEquals(DateTime.date(2011, 2, 8).atMidnight().asLong(), t.dateTime);
+        assertEquals("My Bank Account", t.fromAccount.title);
+        assertEquals(-2000, t.fromAmount);
+        assertEquals("My Cash Account", t.toAccount.title);
+        assertEquals(2000, t.toAmount);
+        assertEquals("Vacation", t.project.title);
+
+        a = accounts.get(1);
+        assertEquals("My Cash Account", a.title);
+        assertEquals(AccountType.CASH.name(), a.type);
+
+        transactions = db.getTransactionsForAccount(a.id);
+        assertEquals(0, transactions.size());
+    }
+
+    private void doImport() {
+        doImport(qifParserTest.p);
+    }
+
+    private void doImport(QifParser p) {
+        QifImportOptions options = new QifImportOptions("", EU_FORMAT, Currency.EMPTY);
+        qifImport = new QifImport(getContext(), db, options);
+        qifImport.doImport(p);
+    }
+
     private List<TransactionInfo> getSplitsForTransaction(long transactionId) {
         Query<TransactionInfo> q = db.createQuery(TransactionInfo.class);
         q.where(Expressions.eq("parentId", transactionId));
@@ -402,16 +423,6 @@ public class QifImportTest extends AbstractDbTest {
                 return a1.id == a2.id ? 0 : (a1.id > a2.id ? 1 : -1);
             }
         });
-    }
-
-    private void doImport() {
-        doImport(qifParserTest.p);
-    }
-
-    private void doImport(QifParser p) {
-        QifImportOptions options = new QifImportOptions("", EU_FORMAT, Currency.EMPTY);
-        qifImport = new QifImport(getContext(), db, options);
-        qifImport.doImport(p);
     }
 
 

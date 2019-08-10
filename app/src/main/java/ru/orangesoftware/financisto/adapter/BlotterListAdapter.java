@@ -10,10 +10,12 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.adapter;
 
+import static ru.orangesoftware.financisto.model.Category.isSplit;
+import static ru.orangesoftware.financisto.utils.TransactionTitleUtils.generateTransactionTitle;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.database.Cursor;
-import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.text.format.DateUtils;
 import android.view.View;
@@ -29,34 +31,72 @@ import java.util.HashMap;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.db.DatabaseHelper.BlotterColumns;
-import static ru.orangesoftware.financisto.model.Category.isSplit;
 import ru.orangesoftware.financisto.model.CategoryEntity;
 import ru.orangesoftware.financisto.model.Currency;
 import ru.orangesoftware.financisto.model.TransactionStatus;
 import ru.orangesoftware.financisto.recur.Recurrence;
 import ru.orangesoftware.financisto.utils.CurrencyCache;
 import ru.orangesoftware.financisto.utils.MyPreferences;
-import static ru.orangesoftware.financisto.utils.TransactionTitleUtils.generateTransactionTitle;
-
 import ru.orangesoftware.financisto.utils.StringUtil;
 import ru.orangesoftware.financisto.utils.Utils;
 
 public class BlotterListAdapter extends ResourceCursorAdapter {
 
-    private final Date dt = new Date();
+    public static class BlotterViewHolder {
+
+        public final TextView bottomView;
+
+        public final TextView centerView;
+
+        public final CheckBox checkBox;
+
+        public final ImageView iconView;
+
+        public final TextView indicator;
+
+        public final RelativeLayout layout;
+
+        public final TextView rightCenterView;
+
+        public final TextView rightView;
+
+        public final TextView topView;
+
+        public BlotterViewHolder(View view) {
+            layout = (RelativeLayout) view.findViewById(R.id.layout);
+            indicator = (TextView) view.findViewById(R.id.indicator);
+            topView = (TextView) view.findViewById(R.id.top);
+            centerView = (TextView) view.findViewById(R.id.center);
+            bottomView = (TextView) view.findViewById(R.id.bottom);
+            rightCenterView = (TextView) view.findViewById(R.id.right_center);
+            rightView = (TextView) view.findViewById(R.id.right);
+            iconView = (ImageView) view.findViewById(R.id.right_top);
+            checkBox = (CheckBox) view.findViewById(R.id.cb);
+        }
+
+    }
+
+    protected final DatabaseAdapter db;
+
+    protected final Drawable icBlotterExpense;
+
+    protected final Drawable icBlotterIncome;
+
+    protected final Drawable icBlotterSplit;
+
+    protected final Drawable icBlotterTransfer;
 
     protected final StringBuilder sb = new StringBuilder();
-    protected final Drawable icBlotterIncome;
-    protected final Drawable icBlotterExpense;
-    protected final Drawable icBlotterTransfer;
-    protected final Drawable icBlotterSplit;
+
     protected final Utils u;
-    protected final DatabaseAdapter db;
+
+    private boolean allChecked = true;
+
+    private final HashMap<Long, Boolean> checkedItems = new HashMap<Long, Boolean>();
 
     private final int colors[];
 
-    private boolean allChecked = true;
-    private final HashMap<Long, Boolean> checkedItems = new HashMap<Long, Boolean>();
+    private final Date dt = new Date();
 
     private boolean showRunningBalance;
 
@@ -80,19 +120,42 @@ public class BlotterListAdapter extends ResourceCursorAdapter {
         this.db = db;
     }
 
-    private int[] initializeColors(Context context) {
-        Resources r = context.getResources();
-        TransactionStatus[] statuses = TransactionStatus.values();
-        int count = statuses.length;
-        int[] colors = new int[count];
-        for (int i = 0; i < count; i++) {
-            colors[i] = r.getColor(statuses[i].colorId);
-        }
-        return colors;
+    @Override
+    public void bindView(View view, Context context, Cursor cursor) {
+        final BlotterViewHolder v = (BlotterViewHolder) view.getTag();
+        bindView(v, context, cursor);
     }
 
-    protected boolean isShowRunningBalance() {
-        return showRunningBalance;
+    public void checkAll() {
+        allChecked = true;
+        checkedItems.clear();
+        notifyDataSetInvalidated();
+    }
+
+    public long[] getAllCheckedIds() {
+        int checkedCount = getCheckedCount();
+        long[] ids = new long[checkedCount];
+        int k = 0;
+        if (allChecked) {
+            int count = getCount();
+            boolean addAll = count == checkedCount;
+            for (int i = 0; i < count; i++) {
+                long id = getItemId(i);
+                boolean checked = addAll || getCheckedState(id);
+                if (checked) {
+                    ids[k++] = id;
+                }
+            }
+        } else {
+            for (Long id : checkedItems.keySet()) {
+                ids[k++] = id;
+            }
+        }
+        return ids;
+    }
+
+    public int getCheckedCount() {
+        return allChecked ? getCount() - checkedItems.size() : checkedItems.size();
     }
 
     @Override
@@ -102,15 +165,10 @@ public class BlotterListAdapter extends ResourceCursorAdapter {
         return view;
     }
 
-    private void createHolder(View view) {
-        BlotterViewHolder h = new BlotterViewHolder(view);
-        view.setTag(h);
-    }
-
-    @Override
-    public void bindView(View view, Context context, Cursor cursor) {
-        final BlotterViewHolder v = (BlotterViewHolder) view.getTag();
-        bindView(v, context, cursor);
+    public void uncheckAll() {
+        allChecked = false;
+        checkedItems.clear();
+        notifyDataSetInvalidated();
     }
 
     protected void bindView(final BlotterViewHolder v, Context context, Cursor cursor) {
@@ -196,7 +254,8 @@ public class BlotterListAdapter extends ResourceCursorAdapter {
                 long date = cursor.getLong(BlotterColumns.datetime.ordinal());
                 dt.setTime(date);
                 v.bottomView.setText(StringUtil.capitalize(DateUtils.formatDateTime(context, dt.getTime(),
-                        DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_MONTH | DateUtils.FORMAT_SHOW_WEEKDAY | DateUtils.FORMAT_ABBREV_WEEKDAY)));
+                        DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_MONTH
+                                | DateUtils.FORMAT_SHOW_WEEKDAY | DateUtils.FORMAT_ABBREV_WEEKDAY)));
 
                 if (isTemplate == 0 && date > System.currentTimeMillis()) {
                     u.setFutureTextColor(v.bottomView);
@@ -220,32 +279,8 @@ public class BlotterListAdapter extends ResourceCursorAdapter {
         }
     }
 
-    private void setTransactionTitleText(Cursor cursor, TextView noteView) {
-        sb.setLength(0);
-        String payee = cursor.getString(BlotterColumns.payee.ordinal());
-        String note = cursor.getString(BlotterColumns.note.ordinal());
-        long locationId = cursor.getLong(BlotterColumns.location_id.ordinal());
-        String location = getLocationTitle(cursor, locationId);
-        long categoryId = cursor.getLong(BlotterColumns.category_id.ordinal());
-        String category = getCategoryTitle(cursor, categoryId);
-        String text = generateTransactionTitle(sb, payee, note, location, categoryId, category);
-        noteView.setText(text);
-    }
-
-    private String getCategoryTitle(Cursor cursor, long categoryId) {
-        String category = "";
-        if (categoryId != 0) {
-            category = cursor.getString(BlotterColumns.category_title.ordinal());
-        }
-        return category;
-    }
-
-    private String getLocationTitle(Cursor cursor, long locationId) {
-        String location = "";
-        if (locationId > 0) {
-            location = cursor.getString(BlotterColumns.location.ordinal());
-        }
-        return location;
+    protected boolean isShowRunningBalance() {
+        return showRunningBalance;
     }
 
     void removeRightViewIfNeeded(BlotterViewHolder v) {
@@ -259,8 +294,52 @@ public class BlotterListAdapter extends ResourceCursorAdapter {
         v.indicator.setBackgroundColor(colors[status.ordinal()]);
     }
 
+    private void createHolder(View view) {
+        BlotterViewHolder h = new BlotterViewHolder(view);
+        view.setTag(h);
+    }
+
+    private String getCategoryTitle(Cursor cursor, long categoryId) {
+        String category = "";
+        if (categoryId != 0) {
+            category = cursor.getString(BlotterColumns.category_title.ordinal());
+        }
+        return category;
+    }
+
     private boolean getCheckedState(long id) {
         return checkedItems.get(id) == null == allChecked;
+    }
+
+    private String getLocationTitle(Cursor cursor, long locationId) {
+        String location = "";
+        if (locationId > 0) {
+            location = cursor.getString(BlotterColumns.location.ordinal());
+        }
+        return location;
+    }
+
+    private int[] initializeColors(Context context) {
+        Resources r = context.getResources();
+        TransactionStatus[] statuses = TransactionStatus.values();
+        int count = statuses.length;
+        int[] colors = new int[count];
+        for (int i = 0; i < count; i++) {
+            colors[i] = r.getColor(statuses[i].colorId);
+        }
+        return colors;
+    }
+
+    private void setTransactionTitleText(Cursor cursor, TextView noteView) {
+        sb.setLength(0);
+        String payee = cursor.getString(BlotterColumns.payee.ordinal());
+        String note = cursor.getString(BlotterColumns.note.ordinal());
+        long locationId = cursor.getLong(BlotterColumns.location_id.ordinal());
+        String location = getLocationTitle(cursor, locationId);
+        long categoryId = cursor.getLong(BlotterColumns.category_id.ordinal());
+        String category = getCategoryTitle(cursor, categoryId);
+        String text = generateTransactionTitle(sb, payee, note, location, categoryId, category);
+        noteView.setText(text);
     }
 
     private void updateCheckedState(long id, boolean checked) {
@@ -269,70 +348,6 @@ public class BlotterListAdapter extends ResourceCursorAdapter {
         } else {
             checkedItems.remove(id);
         }
-    }
-
-    public int getCheckedCount() {
-        return allChecked ? getCount() - checkedItems.size() : checkedItems.size();
-    }
-
-    public void checkAll() {
-        allChecked = true;
-        checkedItems.clear();
-        notifyDataSetInvalidated();
-    }
-
-    public void uncheckAll() {
-        allChecked = false;
-        checkedItems.clear();
-        notifyDataSetInvalidated();
-    }
-
-    public static class BlotterViewHolder {
-
-        public final RelativeLayout layout;
-        public final TextView indicator;
-        public final TextView topView;
-        public final TextView centerView;
-        public final TextView bottomView;
-        public final TextView rightCenterView;
-        public final TextView rightView;
-        public final ImageView iconView;
-        public final CheckBox checkBox;
-
-        public BlotterViewHolder(View view) {
-            layout = (RelativeLayout) view.findViewById(R.id.layout);
-            indicator = (TextView) view.findViewById(R.id.indicator);
-            topView = (TextView) view.findViewById(R.id.top);
-            centerView = (TextView) view.findViewById(R.id.center);
-            bottomView = (TextView) view.findViewById(R.id.bottom);
-            rightCenterView = (TextView) view.findViewById(R.id.right_center);
-            rightView = (TextView) view.findViewById(R.id.right);
-            iconView = (ImageView) view.findViewById(R.id.right_top);
-            checkBox = (CheckBox) view.findViewById(R.id.cb);
-        }
-
-    }
-
-    public long[] getAllCheckedIds() {
-        int checkedCount = getCheckedCount();
-        long[] ids = new long[checkedCount];
-        int k = 0;
-        if (allChecked) {
-            int count = getCount();
-            boolean addAll = count == checkedCount;
-            for (int i = 0; i < count; i++) {
-                long id = getItemId(i);
-                boolean checked = addAll || getCheckedState(id);
-                if (checked) {
-                    ids[k++] = id;
-                }
-            }
-        } else {
-            for (Long id : checkedItems.keySet()) {
-                ids[k++] = id;
-            }
-        }
-        return ids;
     }
 
 }

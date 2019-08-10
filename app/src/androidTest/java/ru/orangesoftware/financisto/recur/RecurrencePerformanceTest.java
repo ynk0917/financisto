@@ -8,14 +8,13 @@
 
 package ru.orangesoftware.financisto.recur;
 
+import static ru.orangesoftware.financisto.test.DateTime.date;
+
 import android.test.AndroidTestCase;
 import android.util.Log;
-import ru.orangesoftware.financisto.test.DateTime;
-
 import java.util.Date;
 import java.util.List;
-
-import static ru.orangesoftware.financisto.test.DateTime.date;
+import ru.orangesoftware.financisto.test.DateTime;
 
 /**
  * Created by IntelliJ IDEA.
@@ -43,7 +42,7 @@ public class RecurrencePerformanceTest extends AndroidTestCase {
             return r.generateDates(new Date(start), new Date(end));
         } finally {
             long t1 = System.currentTimeMillis();
-            Log.i("RecurrencePerformanceTest", "Generated "+start+"-"+end+": "+(t1-t0)+"ms");
+            Log.i("RecurrencePerformanceTest", "Generated " + start + "-" + end + ": " + (t1 - t0) + "ms");
         }
     }
 

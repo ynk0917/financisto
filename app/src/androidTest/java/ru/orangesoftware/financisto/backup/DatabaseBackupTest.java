@@ -8,11 +8,11 @@
 
 package ru.orangesoftware.financisto.backup;
 
+import static org.hamcrest.core.StringContains.*;
+import static org.junit.Assert.*;
+
 import android.content.Context;
 import android.content.pm.PackageInfo;
-
-import org.apache.commons.io.FileUtils;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -22,7 +22,7 @@ import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
-
+import org.apache.commons.io.FileUtils;
 import ru.orangesoftware.financisto.export.AbstractImportExportTest;
 import ru.orangesoftware.financisto.export.Export;
 import ru.orangesoftware.financisto.model.Account;
@@ -32,12 +32,10 @@ import ru.orangesoftware.financisto.test.DateTime;
 import ru.orangesoftware.financisto.test.TransactionBuilder;
 import ru.orangesoftware.financisto.utils.Utils;
 
-import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.Assert.assertThat;
-
 public class DatabaseBackupTest extends AbstractImportExportTest {
 
     Account a1;
+
     private Map<String, Category> categoriesMap;
 
     @Override
@@ -46,7 +44,8 @@ public class DatabaseBackupTest extends AbstractImportExportTest {
         a1 = createFirstAccount();
         categoriesMap = CategoryBuilder.createDefaultHierarchy(db);
         TransactionBuilder.withDb(db).dateTime(DateTime.date(2011, 8, 3).at(22, 34, 55, 10))
-                .account(a1).amount(-123456).category(categoriesMap.get("AA1")).payee("P1").location("Home").project("P1").note("My note").create();
+                .account(a1).amount(-123456).category(categoriesMap.get("AA1")).payee("P1").location("Home")
+                .project("P1").note("My note").create();
     }
 
     public void test_should_backup_and_restore_total_amount_for_accounts() throws Exception {
@@ -63,13 +62,6 @@ public class DatabaseBackupTest extends AbstractImportExportTest {
         assertEquals(expectedTotalAmount, accounts.get(0).totalAmount);
     }
 
-    public void test_should_restore_database_from_plain_text() throws Exception {
-        String fileName = backupDatabase(false);
-        assertHeader(fileName, false);
-        restoreDatabase(fileName);
-        assertAccounts();
-    }
-
     public void test_should_restore_database_from_gzipped_text() throws Exception {
         String fileName = backupDatabase(true);
         assertHeader(fileName, true);
@@ -77,16 +69,18 @@ public class DatabaseBackupTest extends AbstractImportExportTest {
         assertAccounts();
     }
 
-    private String backupDatabase(boolean useGzip) throws Exception {
-        Context context = getContext();
-        DatabaseExport databaseExport = new DatabaseExport(context, db.db(), useGzip);
-        return databaseExport.export();
+    public void test_should_restore_database_from_plain_text() throws Exception {
+        String fileName = backupDatabase(false);
+        assertHeader(fileName, false);
+        restoreDatabase(fileName);
+        assertAccounts();
     }
 
-    private void restoreDatabase(String fileName) throws IOException {
-        Context context = getContext();
-        DatabaseImport databaseImport = DatabaseImport.createFromFileBackup(context, db, fileName);
-        databaseImport.importDatabase();
+    private void assertAccounts() {
+        List<Account> accounts = db.getAllAccountsList();
+        assertEquals(1, accounts.size());
+        assertEquals("My Cash Account", accounts.get(0).title);
+        assertEquals("AAA BBB:CCC", accounts.get(0).note);
     }
 
     private void assertHeader(String fileName, boolean useGzip) throws Exception {
@@ -101,6 +95,12 @@ public class DatabaseBackupTest extends AbstractImportExportTest {
 
     }
 
+    private String backupDatabase(boolean useGzip) throws Exception {
+        Context context = getContext();
+        DatabaseExport databaseExport = new DatabaseExport(context, db.db(), useGzip);
+        return databaseExport.export();
+    }
+
     private BufferedReader createFileReader(String fileName, boolean useGzip) throws IOException {
         File backupPath = Export.getBackupFolder(getContext());
         File file = new File(backupPath, fileName);
@@ -112,17 +112,16 @@ public class DatabaseBackupTest extends AbstractImportExportTest {
         return new BufferedReader(r);
     }
 
-    private void assertAccounts() {
-        List<Account> accounts = db.getAllAccountsList();
-        assertEquals(1, accounts.size());
-        assertEquals("My Cash Account", accounts.get(0).title);
-        assertEquals("AAA BBB:CCC", accounts.get(0).note);
-    }
-
     private String fileAsString(String backupFile) throws IOException {
         File backupPath = Export.getBackupFolder(context);
         File file = new File(backupPath, backupFile);
         return FileUtils.readFileToString(file, "UTF-8");
+    }
+
+    private void restoreDatabase(String fileName) throws IOException {
+        Context context = getContext();
+        DatabaseImport databaseImport = DatabaseImport.createFromFileBackup(context, db, fileName);
+        databaseImport.importDatabase();
     }
 
 }

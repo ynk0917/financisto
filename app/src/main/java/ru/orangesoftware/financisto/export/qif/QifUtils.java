@@ -8,17 +8,17 @@
 
 package ru.orangesoftware.financisto.export.qif;
 
-import android.util.Log;
+import static ru.orangesoftware.financisto.export.qif.QifDateFormat.EU_FORMAT;
+import static ru.orangesoftware.financisto.export.qif.QifDateFormat.US_FORMAT;
+import static ru.orangesoftware.financisto.utils.Utils.isNotEmpty;
 
+import android.util.Log;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.regex.Pattern;
-
-import static ru.orangesoftware.financisto.export.qif.QifDateFormat.*;
-import static ru.orangesoftware.financisto.utils.Utils.isNotEmpty;
 
 /**
  * Created by IntelliJ IDEA.
@@ -28,11 +28,13 @@ import static ru.orangesoftware.financisto.utils.Utils.isNotEmpty;
 public class QifUtils {
 
     private static final Pattern DATE_DELIMITER_PATTERN = Pattern.compile("/|'|\\.|-");
+
     private static final Pattern MONEY_PREFIX_PATTERN = Pattern.compile("\\D");
+
     private static final BigDecimal HUNDRED = new BigDecimal(100);
 
-    public static String trimFirstChar(String s) {
-        return s.length() > 1 ? s.substring(1) : "";
+    public static boolean isTransferCategory(String category) {
+        return isNotEmpty(category) && category.startsWith("[") && category.endsWith("]");
     }
 
     /**
@@ -47,7 +49,7 @@ public class QifUtils {
      * <p/>
      * 21/2/07 -> 02/21/2007 UK, Quicken 2007 D15/2/07
      *
-     * @param sDate String QIF date to parse
+     * @param sDate  String QIF date to parse
      * @param format String identifier of format to parse
      * @return Returns parsed date and current date if an error occurs
      */
@@ -144,12 +146,12 @@ public class QifUtils {
         return 0;
     }
 
-    private static long moneyAsLong(BigDecimal bd) {
-        return bd.multiply(HUNDRED).intValue();
+    public static String trimFirstChar(String s) {
+        return s.length() > 1 ? s.substring(1) : "";
     }
 
-    public static boolean isTransferCategory(String category) {
-        return isNotEmpty(category) && category.startsWith("[") && category.endsWith("]");
+    private static long moneyAsLong(BigDecimal bd) {
+        return bd.multiply(HUNDRED).intValue();
     }
 
 }

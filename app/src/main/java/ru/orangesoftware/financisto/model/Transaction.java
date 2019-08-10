@@ -14,16 +14,16 @@ package ru.orangesoftware.financisto.model;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
-
-import ru.orangesoftware.financisto.db.DatabaseHelper.TransactionColumns;
-import ru.orangesoftware.financisto.db.DatabaseHelper.BlotterColumns;
-
-import javax.persistence.*;
-
 import java.util.Date;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Table;
+import javax.persistence.Transient;
+import ru.orangesoftware.financisto.db.DatabaseHelper.BlotterColumns;
+import ru.orangesoftware.financisto.db.DatabaseHelper.TransactionColumns;
 
 @Entity
 @Table(name = "transactions")
@@ -31,80 +31,41 @@ public class Transaction extends TransactionBase {
 
     private static final String SPLIT_BLOB = "SPLIT_BLOB";
 
+    @Column(name = "blob_key")
+    public String blobKey;
+
+    @Transient
+    public Map<Long, String> categoryAttributes;
+
     @Column(name = "category_id")
     public long categoryId;
-
-    @Column(name = "project_id")
-    public long projectId;
-
-    @Column(name = "location_id")
-    public long locationId;
 
     @Column(name = "from_account_id")
     public long fromAccountId;
 
-    @Column(name = "to_account_id")
-    public long toAccountId;
-
-    @Column(name = "payee_id")
-    public long payeeId;
-
-    @Column(name = "blob_key")
-    public String blobKey;
+    @Column(name = "location_id")
+    public long locationId;
 
     @Column(name = "original_currency_id")
     public long originalCurrencyId;
 
-    @Transient
-    public EnumMap<SystemAttribute, String> systemAttributes;
+    @Column(name = "payee_id")
+    public long payeeId;
 
-    @Transient
-    public Map<Long, String> categoryAttributes;
+    @Column(name = "project_id")
+    public long projectId;
 
     @Transient
     public List<Transaction> splits;
 
     @Transient
+    public EnumMap<SystemAttribute, String> systemAttributes;
+
+    @Column(name = "to_account_id")
+    public long toAccountId;
+
+    @Transient
     public long unsplitAmount;
-
-    public ContentValues toValues() {
-        ContentValues values = new ContentValues();
-        values.put(TransactionColumns.parent_id.name(), parentId);
-        values.put(TransactionColumns.category_id.name(), categoryId);
-        values.put(TransactionColumns.project_id.name(), projectId);
-        values.put(TransactionColumns.datetime.name(), dateTime);
-        values.put(TransactionColumns.location_id.name(), locationId);
-        values.put(TransactionColumns.provider.name(), provider);
-        values.put(TransactionColumns.accuracy.name(), accuracy);
-        values.put(TransactionColumns.latitude.name(), latitude);
-        values.put(TransactionColumns.longitude.name(), longitude);
-        values.put(TransactionColumns.from_account_id.name(), fromAccountId);
-        values.put(TransactionColumns.to_account_id.name(), toAccountId);
-        values.put(TransactionColumns.payee_id.name(), payeeId);
-        values.put(TransactionColumns.note.name(), note);
-        values.put(TransactionColumns.from_amount.name(), fromAmount);
-        values.put(TransactionColumns.to_amount.name(), toAmount);
-        values.put(TransactionColumns.original_currency_id.name(), originalCurrencyId);
-        values.put(TransactionColumns.original_from_amount.name(), originalFromAmount);
-        values.put(TransactionColumns.is_template.name(), isTemplate);
-        values.put(TransactionColumns.template_name.name(), templateName);
-        values.put(TransactionColumns.recurrence.name(), recurrence);
-        values.put(TransactionColumns.notification_options.name(), notificationOptions);
-        values.put(TransactionColumns.status.name(), status.name());
-        values.put(TransactionColumns.attached_picture.name(), attachedPicture);
-        values.put(TransactionColumns.is_ccard_payment.name(), isCCardPayment);
-        values.put(TransactionColumns.last_recurrence.name(), lastRecurrence);
-        values.put(TransactionColumns.blob_key.name(), blobKey);
-        return values;
-    }
-
-    public void toIntentAsSplit(Intent intent) {
-        intent.putExtra(SPLIT_BLOB, this);
-    }
-
-    public static Transaction fromIntentAsSplit(Intent intent) {
-        return (Transaction) intent.getSerializableExtra(SPLIT_BLOB);
-    }
 
     public static Transaction fromBlotterCursor(Cursor c) {
         long id = c.getLong(BlotterColumns._id.ordinal());
@@ -138,16 +99,8 @@ public class Transaction extends TransactionBase {
         return t;
     }
 
-    public boolean isTransfer() {
-        return toAccountId > 0;
-    }
-
-    public boolean isSplitParent() {
-        return categoryId == Category.SPLIT_CATEGORY_ID;
-    }
-
-    public String getSystemAttribute(SystemAttribute sa) {
-        return systemAttributes != null ? systemAttributes.get(sa) : null;
+    public static Transaction fromIntentAsSplit(Intent intent) {
+        return (Transaction) intent.getSerializableExtra(SPLIT_BLOB);
     }
 
     @Override
@@ -159,6 +112,22 @@ public class Transaction extends TransactionBase {
         }
     }
 
+    public String getSystemAttribute(SystemAttribute sa) {
+        return systemAttributes != null ? systemAttributes.get(sa) : null;
+    }
+
+    public boolean isSplitParent() {
+        return categoryId == Category.SPLIT_CATEGORY_ID;
+    }
+
+    public boolean isTransfer() {
+        return toAccountId > 0;
+    }
+
+    public void toIntentAsSplit(Intent intent) {
+        intent.putExtra(SPLIT_BLOB, this);
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -166,6 +135,37 @@ public class Transaction extends TransactionBase {
         sb.append("FA(").append(fromAccountId).append(")->").append(fromAmount).append(",");
         sb.append("TA(").append(toAccountId).append(")->").append(toAmount);
         return sb.toString();
+    }
+
+    public ContentValues toValues() {
+        ContentValues values = new ContentValues();
+        values.put(TransactionColumns.parent_id.name(), parentId);
+        values.put(TransactionColumns.category_id.name(), categoryId);
+        values.put(TransactionColumns.project_id.name(), projectId);
+        values.put(TransactionColumns.datetime.name(), dateTime);
+        values.put(TransactionColumns.location_id.name(), locationId);
+        values.put(TransactionColumns.provider.name(), provider);
+        values.put(TransactionColumns.accuracy.name(), accuracy);
+        values.put(TransactionColumns.latitude.name(), latitude);
+        values.put(TransactionColumns.longitude.name(), longitude);
+        values.put(TransactionColumns.from_account_id.name(), fromAccountId);
+        values.put(TransactionColumns.to_account_id.name(), toAccountId);
+        values.put(TransactionColumns.payee_id.name(), payeeId);
+        values.put(TransactionColumns.note.name(), note);
+        values.put(TransactionColumns.from_amount.name(), fromAmount);
+        values.put(TransactionColumns.to_amount.name(), toAmount);
+        values.put(TransactionColumns.original_currency_id.name(), originalCurrencyId);
+        values.put(TransactionColumns.original_from_amount.name(), originalFromAmount);
+        values.put(TransactionColumns.is_template.name(), isTemplate);
+        values.put(TransactionColumns.template_name.name(), templateName);
+        values.put(TransactionColumns.recurrence.name(), recurrence);
+        values.put(TransactionColumns.notification_options.name(), notificationOptions);
+        values.put(TransactionColumns.status.name(), status.name());
+        values.put(TransactionColumns.attached_picture.name(), attachedPicture);
+        values.put(TransactionColumns.is_ccard_payment.name(), isCCardPayment);
+        values.put(TransactionColumns.last_recurrence.name(), lastRecurrence);
+        values.put(TransactionColumns.blob_key.name(), blobKey);
+        return values;
     }
 
 }

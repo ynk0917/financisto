@@ -4,7 +4,6 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.LightingColorFilter;
 import android.graphics.drawable.Drawable;
-
 import greendroid.widget.QuickAction;
 import ru.orangesoftware.financisto.R;
 

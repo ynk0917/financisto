@@ -2,7 +2,6 @@ package ru.orangesoftware.financisto.export.csv;
 
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
-
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.text.ParseException;
@@ -14,7 +13,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.export.CategoryCache;
@@ -33,11 +31,16 @@ import ru.orangesoftware.financisto.utils.Utils;
 
 public class CsvImport {
 
-    private final DatabaseAdapter db;
-    private final CsvImportOptions options;
     private final Account account;
+
+    private final DatabaseAdapter db;
+
     private char decimalSeparator;
+
     private char groupSeparator;
+
+    private final CsvImportOptions options;
+
     private ProgressListener progressListener;
 
     public CsvImport(DatabaseAdapter db, CsvImportOptions options) {
@@ -46,6 +49,59 @@ public class CsvImport {
         this.account = db.getAccount(options.selectedAccountId);
         this.decimalSeparator = options.currency.decimalSeparator.charAt(1);
         this.groupSeparator = options.currency.groupSeparator.charAt(1);
+    }
+
+    public Map<String, Category> collectAndInsertCategories(List<CsvTransaction> transactions) {
+        Set<CategoryInfo> categories = collectCategories(transactions);
+        CategoryCache cache = new CategoryCache();
+        cache.loadExistingCategories(db);
+        cache.insertCategories(db, categories);
+        return cache.categoryNameToCategory;
+    }
+
+    public Map<String, Payee> collectAndInsertPayees(List<CsvTransaction> transactions) {
+        Map<String, Payee> map = db.getAllPayeeByTitleMap();
+        for (CsvTransaction transaction : transactions) {
+            String payee = transaction.payee;
+            if (isNewEntity(map, payee)) {
+                Payee p = new Payee();
+                p.title = payee;
+                db.saveOrUpdate(p);
+                map.put(payee, p);
+            }
+        }
+        return map;
+    }
+
+    public Map<String, Project> collectAndInsertProjects(List<CsvTransaction> transactions) {
+        Map<String, Project> map = db.getAllProjectsByTitleMap(false);
+        for (CsvTransaction transaction : transactions) {
+            String project = transaction.project;
+            if (isNewProject(map, project)) {
+                Project p = new Project();
+                p.title = project;
+                p.isActive = true;
+                db.saveOrUpdate(p);
+                map.put(project, p);
+            }
+        }
+        return map;
+    }
+
+    public Set<CategoryInfo> collectCategories(List<CsvTransaction> transactions) {
+        Set<CategoryInfo> categories = new HashSet<CategoryInfo>();
+        for (CsvTransaction transaction : transactions) {
+            String category = transaction.category;
+            if (Utils.isNotEmpty(transaction.categoryParent)) {
+                category = transaction.categoryParent + CategoryInfo.SEPARATOR + category;
+            }
+            if (Utils.isNotEmpty(category)) {
+                categories.add(new CategoryInfo(category, false));
+                transaction.category = category;
+                transaction.categoryParent = null;
+            }
+        }
+        return categories;
     }
 
     public Object doImport() throws Exception {
@@ -72,49 +128,8 @@ public class CsvImport {
         return options.filename + " imported!";
     }
 
-    public Map<String, Project> collectAndInsertProjects(List<CsvTransaction> transactions) {
-        Map<String, Project> map = db.getAllProjectsByTitleMap(false);
-        for (CsvTransaction transaction : transactions) {
-            String project = transaction.project;
-            if (isNewProject(map, project)) {
-                Project p = new Project();
-                p.title = project;
-                p.isActive = true;
-                db.saveOrUpdate(p);
-                map.put(project, p);
-            }
-        }
-        return map;
-    }
-
-    private boolean isNewProject(Map<String, Project> map, String project) {
-        return Utils.isNotEmpty(project) && !"No project".equals(project) && !map.containsKey(project);
-    }
-
-    public Map<String, Payee> collectAndInsertPayees(List<CsvTransaction> transactions) {
-        Map<String, Payee> map = db.getAllPayeeByTitleMap();
-        for (CsvTransaction transaction : transactions) {
-            String payee = transaction.payee;
-            if (isNewEntity(map, payee)) {
-                Payee p = new Payee();
-                p.title = payee;
-                db.saveOrUpdate(p);
-                map.put(payee, p);
-            }
-        }
-        return map;
-    }
-
-    private boolean isNewEntity(Map<String, ? extends MyEntity> map, String name) {
-        return Utils.isNotEmpty(name) && !map.containsKey(name);
-    }
-
-    public Map<String, Category> collectAndInsertCategories(List<CsvTransaction> transactions) {
-        Set<CategoryInfo> categories = collectCategories(transactions);
-        CategoryCache cache = new CategoryCache();
-        cache.loadExistingCategories(db);
-        cache.insertCategories(db, categories);
-        return cache.categoryNameToCategory;
+    void setProgressListener(ProgressListener progressListener) {
+        this.progressListener = progressListener;
     }
 
     private Map<String, Currency> collectAndInsertCurrencies(List<CsvTransaction> transactions) {
@@ -137,10 +152,10 @@ public class CsvImport {
     }
 
     private void importTransactions(List<CsvTransaction> transactions,
-                                    Map<String, Currency> currencies,
-                                    Map<String, Category> categories,
-                                    Map<String, Project> projects,
-                                    Map<String, Payee> payees) {
+            Map<String, Currency> currencies,
+            Map<String, Category> categories,
+            Map<String, Project> projects,
+            Map<String, Payee> payees) {
         SQLiteDatabase database = db.db();
         database.beginTransaction();
         try {
@@ -161,6 +176,36 @@ public class CsvImport {
             database.setTransactionSuccessful();
         } finally {
             database.endTransaction();
+        }
+    }
+
+    private boolean isNewEntity(Map<String, ? extends MyEntity> map, String name) {
+        return Utils.isNotEmpty(name) && !map.containsKey(name);
+    }
+
+    private boolean isNewProject(Map<String, Project> map, String project) {
+        return Utils.isNotEmpty(project) && !"No project".equals(project) && !map.containsKey(project);
+    }
+
+    //Workaround function which is needed for reimport of CsvExport files
+    private String myTrim(String s) {
+        if (Character.isLetter(s.charAt(0))) {
+            return s;
+        } else {
+            return s.substring(1);
+        }
+
+    }
+
+    private Double parseAmount(String fieldValue) {
+        fieldValue = fieldValue.trim();
+        if (fieldValue.length() > 0) {
+            fieldValue = fieldValue.replace(groupSeparator + "", "");
+            fieldValue = fieldValue.replace(decimalSeparator, '.');
+            double fromAmount = Double.parseDouble(fieldValue);
+            return fromAmount * 100.0;
+        } else {
+            return 0.0;
         }
     }
 
@@ -214,7 +259,8 @@ public class CsvImport {
                                         transaction.project = fieldValue;
                                     } else if (transactionField.equals("currency")) {
                                         if (!account.currency.name.equals(fieldValue)) {
-                                            throw new ImportExportException(R.string.import_wrong_currency_2, null, fieldValue);
+                                            throw new ImportExportException(R.string.import_wrong_currency_2, null,
+                                                    fieldValue);
                                         }
                                         transaction.currency = fieldValue;
                                     }
@@ -236,53 +282,11 @@ public class CsvImport {
             }
             return transactions;
         } catch (FileNotFoundException e) {
-            if (csvFilename.contains(":")){
+            if (csvFilename.contains(":")) {
                 throw new ImportExportException(R.string.import_file_not_found_2, null,
-                        csvFilename.substring(0, csvFilename.indexOf(":")+1));
+                        csvFilename.substring(0, csvFilename.indexOf(":") + 1));
             }
             throw new Exception("Import file not found");
         }
-    }
-
-    private Double parseAmount(String fieldValue) {
-        fieldValue = fieldValue.trim();
-        if (fieldValue.length() > 0) {
-            fieldValue = fieldValue.replace(groupSeparator + "", "");
-            fieldValue = fieldValue.replace(decimalSeparator, '.');
-            double fromAmount = Double.parseDouble(fieldValue);
-            return fromAmount * 100.0;
-        } else {
-            return 0.0;
-        }
-    }
-
-    public Set<CategoryInfo> collectCategories(List<CsvTransaction> transactions) {
-        Set<CategoryInfo> categories = new HashSet<CategoryInfo>();
-        for (CsvTransaction transaction : transactions) {
-            String category = transaction.category;
-            if (Utils.isNotEmpty(transaction.categoryParent)) {
-                category = transaction.categoryParent + CategoryInfo.SEPARATOR + category;
-            }
-            if (Utils.isNotEmpty(category)) {
-                categories.add(new CategoryInfo(category, false));
-                transaction.category = category;
-                transaction.categoryParent = null;
-            }
-        }
-        return categories;
-    }
-
-    //Workaround function which is needed for reimport of CsvExport files
-    private String myTrim(String s) {
-        if (Character.isLetter(s.charAt(0))) {
-            return s;
-        } else {
-            return s.substring(1);
-        }
-
-    }
-
-    void setProgressListener(ProgressListener progressListener) {
-        this.progressListener = progressListener;
     }
 }

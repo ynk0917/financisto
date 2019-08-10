@@ -4,7 +4,7 @@
  * are made available under the terms of the GNU Public License v2.0
  * which accompanies this distribution, and is available at
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * 
+ *
  * Contributors:
  *     Denis Solonenko - initial API and implementation
  ******************************************************************************/
@@ -28,21 +28,18 @@ import ru.orangesoftware.financisto.utils.Utils;
 @Entity
 @Table(name = "transactions")
 public class TransactionInfo extends TransactionBase {
-	
-	@JoinColumn(name = "from_account_id")
-	public Account fromAccount;
 
-	@JoinColumn(name = "to_account_id", required = false)
-	public Account toAccount;
+    @JoinColumn(name = "category_id")
+    public Category category;
 
-	@JoinColumn(name = "category_id")
-	public Category category;
+    @JoinColumn(name = "from_account_id")
+    public Account fromAccount;
 
-	@JoinColumn(name = "project_id", required = false)
-	public Project project;
+    @JoinColumn(name = "location_id", required = false)
+    public MyLocation location;
 
-	@JoinColumn(name = "location_id", required = false)
-	public MyLocation location;
+    @Transient
+    public Date nextDateTime;
 
     @JoinColumn(name = "original_currency_id", required = false)
     public Currency originalCurrency;
@@ -50,64 +47,11 @@ public class TransactionInfo extends TransactionBase {
     @JoinColumn(name = "payee_id", required = false)
     public Payee payee;
 
-    @Transient
-	public Date nextDateTime;
-	
-	public boolean isTransfer() {
-		return toAccount != null;
-	}
+    @JoinColumn(name = "project_id", required = false)
+    public Project project;
 
-	public Class<? extends Activity> getActivity() {
-		return isTransfer() ? TransferActivity.class : TransactionActivity.class;
-	}
-	
-	public int getNotificationIcon() { // todo.mb: add icon for withdraw transaction
-		return isTransfer() ?
-            R.drawable.notification_icon_transfer :
-            fromAmount > 0 ?
-                R.drawable.notification_icon_transaction : R.drawable.ic_btn_round_minus;
-	}
-	
-	public String getNotificationTickerText(Context context) {
-		return context.getString(isTransfer() ? R.string.new_scheduled_transfer_text : R.string.new_scheduled_transaction_text);
-	}
-
-	public String getNotificationContentTitle(Context context) {
-		return context.getString(isTransfer() ? R.string.new_scheduled_transfer_title : R.string.new_scheduled_transaction_title);
-	}
-	
-	public String getNotificationContentText(Context context) {
-		if (toAccount != null) {
-			if (fromAccount.currency.id == toAccount.currency.id) {
-				return context.getString(R.string.new_scheduled_transfer_notification_same_currency, 
-						Utils.amountToString(fromAccount.currency, Math.abs(fromAmount)),
-						fromAccount.title, toAccount.title);				
-			} else {
-				return context.getString(R.string.new_scheduled_transfer_notification_differ_currency, 
-						Utils.amountToString(fromAccount.currency, Math.abs(fromAmount)),
-						Utils.amountToString(toAccount.currency, Math.abs(toAmount)),
-						fromAccount.title, toAccount.title);								
-			}
-		} else {
-			return context.getString(R.string.new_scheduled_transaction_notification,
-					Utils.amountToString(fromAccount.currency, Math.abs(fromAmount)),
-					context.getString(fromAmount > 0 ? R.string.new_scheduled_transaction_debit : R.string.new_scheduled_transaction_credit),
-					fromAccount.title);
-		}		
-	}
-
-    @Override
-    public TransactionInfo clone() {
-        try {
-            return (TransactionInfo)super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public boolean isSplitParent() {
-        return category.isSplit();
-    }
+    @JoinColumn(name = "to_account_id", required = false)
+    public Account toAccount;
 
     public static TransactionInfo fromBlotterCursor(Cursor c) {
         long id = c.getLong(DatabaseHelper.BlotterColumns._id.ordinal());
@@ -120,13 +64,15 @@ public class TransactionInfo extends TransactionBase {
         t.fromAmount = c.getLong(DatabaseHelper.BlotterColumns.from_amount.ordinal());
         t.toAmount = c.getLong(DatabaseHelper.BlotterColumns.to_amount.ordinal());
 
-        t.originalCurrency = CurrencyCache.getCurrencyOrEmpty(c.getLong(DatabaseHelper.BlotterColumns.original_currency_id.ordinal()));
+        t.originalCurrency = CurrencyCache
+                .getCurrencyOrEmpty(c.getLong(DatabaseHelper.BlotterColumns.original_currency_id.ordinal()));
         t.originalFromAmount = c.getLong(DatabaseHelper.BlotterColumns.original_from_amount.ordinal());
 
         Account fromAccount = new Account();
         fromAccount.id = c.getLong(DatabaseHelper.BlotterColumns.from_account_id.ordinal());
         fromAccount.title = c.getString(DatabaseHelper.BlotterColumns.from_account_title.ordinal());
-        fromAccount.currency = CurrencyCache.getCurrencyOrEmpty(c.getLong(DatabaseHelper.BlotterColumns.from_account_currency_id.ordinal()));
+        fromAccount.currency = CurrencyCache
+                .getCurrencyOrEmpty(c.getLong(DatabaseHelper.BlotterColumns.from_account_currency_id.ordinal()));
         t.fromAccount = fromAccount;
 
         long toAccountId = c.getLong(DatabaseHelper.BlotterColumns.to_account_id.ordinal());
@@ -134,7 +80,8 @@ public class TransactionInfo extends TransactionBase {
             Account toAccount = new Account();
             toAccount.id = toAccountId;
             toAccount.title = c.getString(DatabaseHelper.BlotterColumns.to_account_title.ordinal());
-            toAccount.currency = CurrencyCache.getCurrencyOrEmpty(c.getLong(DatabaseHelper.BlotterColumns.to_account_currency_id.ordinal()));
+            toAccount.currency = CurrencyCache
+                    .getCurrencyOrEmpty(c.getLong(DatabaseHelper.BlotterColumns.to_account_currency_id.ordinal()));
             t.toAccount = toAccount;
         }
 
@@ -168,6 +115,65 @@ public class TransactionInfo extends TransactionBase {
         t.lastRecurrence = c.getLong(DatabaseHelper.BlotterColumns.last_recurrence.ordinal());
 
         return t;
+    }
+
+    @Override
+    public TransactionInfo clone() {
+        try {
+            return (TransactionInfo) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Class<? extends Activity> getActivity() {
+        return isTransfer() ? TransferActivity.class : TransactionActivity.class;
+    }
+
+    public String getNotificationContentText(Context context) {
+        if (toAccount != null) {
+            if (fromAccount.currency.id == toAccount.currency.id) {
+                return context.getString(R.string.new_scheduled_transfer_notification_same_currency,
+                        Utils.amountToString(fromAccount.currency, Math.abs(fromAmount)),
+                        fromAccount.title, toAccount.title);
+            } else {
+                return context.getString(R.string.new_scheduled_transfer_notification_differ_currency,
+                        Utils.amountToString(fromAccount.currency, Math.abs(fromAmount)),
+                        Utils.amountToString(toAccount.currency, Math.abs(toAmount)),
+                        fromAccount.title, toAccount.title);
+            }
+        } else {
+            return context.getString(R.string.new_scheduled_transaction_notification,
+                    Utils.amountToString(fromAccount.currency, Math.abs(fromAmount)),
+                    context.getString(fromAmount > 0 ? R.string.new_scheduled_transaction_debit
+                            : R.string.new_scheduled_transaction_credit),
+                    fromAccount.title);
+        }
+    }
+
+    public String getNotificationContentTitle(Context context) {
+        return context.getString(
+                isTransfer() ? R.string.new_scheduled_transfer_title : R.string.new_scheduled_transaction_title);
+    }
+
+    public int getNotificationIcon() { // todo.mb: add icon for withdraw transaction
+        return isTransfer() ?
+                R.drawable.notification_icon_transfer :
+                fromAmount > 0 ?
+                        R.drawable.notification_icon_transaction : R.drawable.ic_btn_round_minus;
+    }
+
+    public String getNotificationTickerText(Context context) {
+        return context.getString(
+                isTransfer() ? R.string.new_scheduled_transfer_text : R.string.new_scheduled_transaction_text);
+    }
+
+    public boolean isSplitParent() {
+        return category.isSplit();
+    }
+
+    public boolean isTransfer() {
+        return toAccount != null;
     }
 
 }

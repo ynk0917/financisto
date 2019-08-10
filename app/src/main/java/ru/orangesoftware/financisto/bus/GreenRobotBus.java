@@ -16,14 +16,14 @@ public class GreenRobotBus {
         bus.postSticky(event);
     }
 
-    public <T> T removeSticky(Class<T> eventClass) {
-        return bus.removeStickyEvent(eventClass);
-    }
-
     public void register(Object subscriber) {
         if (!bus.isRegistered(subscriber)) {
             bus.register(subscriber);
         }
+    }
+
+    public <T> T removeSticky(Class<T> eventClass) {
+        return bus.removeStickyEvent(eventClass);
     }
 
     public void unregister(Object subscriber) {

@@ -25,10 +25,8 @@ import android.widget.ImageButton;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.PopupMenu;
-
 import java.util.LinkedList;
 import java.util.List;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.utils.MenuItemInfo;
@@ -38,27 +36,29 @@ import ru.orangesoftware.financisto.utils.PinProtection;
 public abstract class AbstractListActivity extends ListActivity implements RefreshSupportedActivity {
 
     protected static final int MENU_VIEW = Menu.FIRST + 1;
+
     protected static final int MENU_EDIT = Menu.FIRST + 2;
+
     protected static final int MENU_DELETE = Menu.FIRST + 3;
+
     protected static final int MENU_ADD = Menu.FIRST + 4;
 
-    private final int contentId;
-
-    protected LayoutInflater inflater;
-    protected Cursor cursor;
     protected ListAdapter adapter;
-    protected DatabaseAdapter db;
+
     protected ImageButton bAdd;
+
+    protected Cursor cursor;
+
+    protected DatabaseAdapter db;
 
     protected boolean enablePin = true;
 
+    protected LayoutInflater inflater;
+
+    private final int contentId;
+
     protected AbstractListActivity(int contentId) {
         this.contentId = contentId;
-    }
-
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
     }
 
     @Override
@@ -97,18 +97,27 @@ public abstract class AbstractListActivity extends ListActivity implements Refre
         });
     }
 
-    protected void recreateAdapter() {
-        adapter = createAdapter(cursor);
-        setListAdapter(adapter);
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == RESULT_OK) {
+            recreateCursor();
+        }
     }
 
-    protected abstract Cursor createCursor();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (enablePin) {
+            PinProtection.unlock(this);
+        }
+    }
 
-    protected abstract ListAdapter createAdapter(Cursor cursor);
-
-    protected void internalOnCreate(Bundle savedInstanceState) {
-        bAdd = findViewById(R.id.bAdd);
-        bAdd.setOnClickListener(arg0 -> addItem());
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (enablePin) {
+            PinProtection.lock(this);
+        }
     }
 
     @Override
@@ -118,23 +127,7 @@ public abstract class AbstractListActivity extends ListActivity implements Refre
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        if (enablePin) PinProtection.lock(this);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (enablePin) PinProtection.unlock(this);
-    }
-
-    protected List<MenuItemInfo> createContextMenus(long id) {
-        List<MenuItemInfo> menus = new LinkedList<>();
-        menus.add(new MenuItemInfo(MENU_VIEW, R.string.view));
-        menus.add(new MenuItemInfo(MENU_EDIT, R.string.edit));
-        menus.add(new MenuItemInfo(MENU_DELETE, R.string.delete));
-        return menus;
+    public void integrityCheck() {
     }
 
     public boolean onPopupItemSelected(int itemId, View view, int position, long id) {
@@ -155,24 +148,6 @@ public abstract class AbstractListActivity extends ListActivity implements Refre
         return false;
     }
 
-    @Override
-    protected void onListItemClick(ListView l, View v, int position, long id) {
-        onItemClick(v, position, id);
-    }
-
-    protected void onItemClick(View v, int position, long id) {
-        viewItem(v, position, id);
-    }
-
-    protected void addItem() {
-    }
-
-    protected abstract void deleteItem(View v, int position, long id);
-
-    protected abstract void editItem(View v, int position, long id);
-
-    protected abstract void viewItem(View v, int position, long id);
-
     public void recreateCursor() {
         Log.i("AbstractListActivity", "Recreating cursor");
         Parcelable state = getListView().onSaveInstanceState();
@@ -191,15 +166,49 @@ public abstract class AbstractListActivity extends ListActivity implements Refre
         }
     }
 
-    @Override
-    public void integrityCheck() {
+    protected void addItem() {
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK) {
-            recreateCursor();
-        }
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
     }
+
+    protected abstract ListAdapter createAdapter(Cursor cursor);
+
+    protected List<MenuItemInfo> createContextMenus(long id) {
+        List<MenuItemInfo> menus = new LinkedList<>();
+        menus.add(new MenuItemInfo(MENU_VIEW, R.string.view));
+        menus.add(new MenuItemInfo(MENU_EDIT, R.string.edit));
+        menus.add(new MenuItemInfo(MENU_DELETE, R.string.delete));
+        return menus;
+    }
+
+    protected abstract Cursor createCursor();
+
+    protected abstract void deleteItem(View v, int position, long id);
+
+    protected abstract void editItem(View v, int position, long id);
+
+    protected void internalOnCreate(Bundle savedInstanceState) {
+        bAdd = findViewById(R.id.bAdd);
+        bAdd.setOnClickListener(arg0 -> addItem());
+    }
+
+    protected void onItemClick(View v, int position, long id) {
+        viewItem(v, position, id);
+    }
+
+    @Override
+    protected void onListItemClick(ListView l, View v, int position, long id) {
+        onItemClick(v, position, id);
+    }
+
+    protected void recreateAdapter() {
+        adapter = createAdapter(cursor);
+        setListAdapter(adapter);
+    }
+
+    protected abstract void viewItem(View v, int position, long id);
 
 }

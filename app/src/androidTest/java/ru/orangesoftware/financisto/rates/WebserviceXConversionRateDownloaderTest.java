@@ -19,21 +19,8 @@ import java.util.List;
 public class WebserviceXConversionRateDownloaderTest extends AbstractRatesDownloaderTest {
 
     long dateTime = System.currentTimeMillis();
+
     WebserviceXConversionRateDownloader webserviceX = new WebserviceXConversionRateDownloader(client, dateTime);
-
-    @Override
-    ExchangeRateProvider service() {
-        return webserviceX;
-    }
-
-    public void test_should_download_single_rate_cur_to_cur() {
-        //given
-        givenResponseFromWebService("USD","SGD",1.2387);
-        //when
-        ExchangeRate exchangeRate = downloadRate("USD", "SGD");
-        //then
-        assertEquals(1.2387, exchangeRate.rate);
-    }
 
     public void test_should_download_multiple_rates() {
         //given
@@ -49,24 +36,25 @@ public class WebserviceXConversionRateDownloaderTest extends AbstractRatesDownlo
         assertRate(rates.get(2), "SGD", "RUB", 25, dateTime);
     }
 
-    public void test_should_skip_unknown_currency() {
+    public void test_should_download_single_rate_cur_to_cur() {
         //given
-        givenResponseFromWebService(anyUrl(), "Exception: Unable to convert ToCurrency to Currency\r\nStacktrace...");
+        givenResponseFromWebService("USD", "SGD", 1.2387);
         //when
-        ExchangeRate rate = downloadRate("USD", "AAA");
+        ExchangeRate exchangeRate = downloadRate("USD", "SGD");
         //then
-        assertFalse(rate.isOk());
-        assertRate(rate, "USD", "AAA");
+        assertEquals(1.2387, exchangeRate.rate);
     }
 
     public void test_should_handle_error_from_webservice_properly() {
         //given
-        givenResponseFromWebService(anyUrl(), "System.IO.IOException: There is not enough space on the disk.\r\nStacktrace...");
+        givenResponseFromWebService(anyUrl(),
+                "System.IO.IOException: There is not enough space on the disk.\r\nStacktrace...");
         //when
         ExchangeRate downloadedRate = downloadRate("USD", "SGD");
         //then
         assertFalse(downloadedRate.isOk());
-        assertEquals("Something wrong with the exchange rates provider. Response from the service - System.IO.IOException: There is not enough space on the disk.",
+        assertEquals(
+                "Something wrong with the exchange rates provider. Response from the service - System.IO.IOException: There is not enough space on the disk.",
                 downloadedRate.getErrorMessage());
     }
 
@@ -81,9 +69,26 @@ public class WebserviceXConversionRateDownloaderTest extends AbstractRatesDownlo
         assertEquals("Unable to get exchange rates: Timeout", downloadedRate.getErrorMessage());
     }
 
+    public void test_should_skip_unknown_currency() {
+        //given
+        givenResponseFromWebService(anyUrl(), "Exception: Unable to convert ToCurrency to Currency\r\nStacktrace...");
+        //when
+        ExchangeRate rate = downloadRate("USD", "AAA");
+        //then
+        assertFalse(rate.isOk());
+        assertRate(rate, "USD", "AAA");
+    }
+
+    @Override
+    ExchangeRateProvider service() {
+        return webserviceX;
+    }
+
     private void givenResponseFromWebService(String c1, String c2, double r) {
-        givenResponseFromWebService("http://www.webservicex.net/CurrencyConvertor.asmx/ConversionRate?FromCurrency="+c1+"&ToCurrency="+c2,
-                "<double xmlns=\"http://www.webserviceX.NET/\">"+r+"</double>");
+        givenResponseFromWebService(
+                "http://www.webservicex.net/CurrencyConvertor.asmx/ConversionRate?FromCurrency=" + c1 + "&ToCurrency="
+                        + c2,
+                "<double xmlns=\"http://www.webserviceX.NET/\">" + r + "</double>");
     }
 
 }

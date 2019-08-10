@@ -13,6 +13,7 @@
     <style name="Theme.Financisto" parent="Theme.AppCompat.Light.DarkActionBar" />
 
     <style name="Theme.Financisto.Dialog" parent="Theme.AppCompat.Light.Dialog" />
+
     <style name="CupcakeDialog" parent="Theme.AppCompat.Light.Dialog">
         <item name="android:windowAnimationStyle">@null</item>
     </style>

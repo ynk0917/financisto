@@ -18,14 +18,24 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.utils.SummaryEntityEnum;
 
 public class SummaryEntityListAdapter extends BaseAdapter {
 
+    private static final class Holder {
+
+        public ImageView icon;
+
+        public TextView label;
+
+        public TextView title;
+    }
+
     private final Context context;
+
     private final SummaryEntityEnum[] entities;
+
     private final LayoutInflater inflater;
 
     public SummaryEntityListAdapter(Context context, SummaryEntityEnum[] reports) {
@@ -70,12 +80,6 @@ public class SummaryEntityListAdapter extends BaseAdapter {
             h.icon.setColorFilter(ContextCompat.getColor(context, R.color.colorPrimary));
         }
         return convertView;
-    }
-
-    private static final class Holder {
-        public ImageView icon;
-        public TextView title;
-        public TextView label;
     }
 
 }

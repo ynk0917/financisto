@@ -9,30 +9,46 @@
 package ru.orangesoftware.financisto.export.csv;
 
 import android.support.annotation.NonNull;
-
-import ru.orangesoftware.financisto.model.*;
-
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
+import ru.orangesoftware.financisto.model.Category;
+import ru.orangesoftware.financisto.model.Currency;
+import ru.orangesoftware.financisto.model.MyEntity;
+import ru.orangesoftware.financisto.model.Payee;
+import ru.orangesoftware.financisto.model.Project;
+import ru.orangesoftware.financisto.model.Transaction;
 
 public class CsvTransaction {
 
-    public Date date;
-    public Date time;
-    public long fromAccountId;
-    public long fromAmount;
-    public long originalAmount;
-    public String originalCurrency;
-    public String payee;
     public String category;
+
     public String categoryParent;
-    public String note;
-    public String project;
+
     public String currency;
+
+    public Date date;
+
     public long delta;
 
-    Transaction createTransaction(Map<String, Currency> currencies, Map<String, Category> categories, Map<String, Project> projects, Map<String, Payee> payees) {
+    public long fromAccountId;
+
+    public long fromAmount;
+
+    public String note;
+
+    public long originalAmount;
+
+    public String originalCurrency;
+
+    public String payee;
+
+    public String project;
+
+    public Date time;
+
+    Transaction createTransaction(Map<String, Currency> currencies, Map<String, Category> categories,
+            Map<String, Project> projects, Map<String, Payee> payees) {
         Transaction t = new Transaction();
         t.dateTime = combineToMillis(date, time, delta);
         t.fromAccountId = fromAccountId;
@@ -63,16 +79,16 @@ public class CsvTransaction {
         return c.getTimeInMillis() + delta;
     }
 
+    private void copy(int field, Calendar fromC, Calendar toC) {
+        toC.set(field, fromC.get(field));
+    }
+
     @NonNull
     private Calendar emptyCalendar(Date date) {
         Calendar c = Calendar.getInstance();
         c.clear();
         c.setTimeInMillis(date.getTime());
         return c;
-    }
-
-    private void copy(int field, Calendar fromC, Calendar toC) {
-        toC.set(field, fromC.get(field));
     }
 
     private static <T extends MyEntity> long getEntityIdOrZero(Map<String, T> map, String value) {

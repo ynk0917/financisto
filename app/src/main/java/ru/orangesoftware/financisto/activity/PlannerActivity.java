@@ -18,129 +18,22 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ListAdapter;
 import android.widget.TextView;
+import java.util.Calendar;
+import java.util.Date;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.adapter.ScheduledListAdapter;
 import ru.orangesoftware.financisto.datetime.Period;
 import ru.orangesoftware.financisto.datetime.PeriodType;
 import ru.orangesoftware.financisto.db.DatabaseHelper;
 import ru.orangesoftware.financisto.filter.Criteria;
-import ru.orangesoftware.financisto.filter.WhereFilter;
 import ru.orangesoftware.financisto.filter.DateTimeCriteria;
+import ru.orangesoftware.financisto.filter.WhereFilter;
 import ru.orangesoftware.financisto.model.Total;
 import ru.orangesoftware.financisto.utils.FuturePlanner;
 import ru.orangesoftware.financisto.utils.TransactionList;
 import ru.orangesoftware.financisto.utils.Utils;
 
-import java.util.Calendar;
-import java.util.Date;
-
 public class PlannerActivity extends AbstractListActivity {
-
-    private TextView totalText;
-    private TextView filterText;
-
-    private WhereFilter filter = WhereFilter.empty();
-
-    public PlannerActivity() {
-        super(R.layout.planner);
-    }
-
-    @Override
-    protected void internalOnCreate(Bundle savedInstanceState) {
-        totalText = findViewById(R.id.total);
-        filterText = findViewById(R.id.period);
-        ImageButton bFilter = findViewById(R.id.bFilter);
-        bFilter.setOnClickListener(view -> showFilter());
-
-        loadFilter();
-        setupFilter();
-        FilterState.updateFilterColor(this, filter, bFilter);
-    }
-
-    private void loadFilter() {
-        SharedPreferences preferences = getPreferences(MODE_PRIVATE);
-        filter = WhereFilter.fromSharedPreferences(preferences);
-        applyDateTimeCriteria(filter.getDateTime());
-    }
-
-    private void setupFilter() {
-        if (filter.isEmpty()) {
-            applyDateTimeCriteria(null);
-        }
-    }
-
-    private void applyDateTimeCriteria(DateTimeCriteria criteria) {
-        if (criteria == null) {
-            Calendar date = Calendar.getInstance();
-            date.add(Calendar.MONTH, 1);
-            criteria = new DateTimeCriteria(PeriodType.THIS_MONTH);
-        }
-        long now = System.currentTimeMillis();
-        if (now > criteria.getLongValue1()) {
-            Period period = criteria.getPeriod();
-            period.start = now;
-            criteria = new DateTimeCriteria(period);
-        }
-        filter.put(criteria);
-    }
-
-    private void showFilter() {
-        Intent intent = new Intent(this, DateFilterActivity.class);
-        intent.putExtra(DateFilterActivity.EXTRA_FILTER_DONT_SHOW_NO_FILTER, true);
-        intent.putExtra(DateFilterActivity.EXTRA_FILTER_SHOW_PLANNER, true);
-        filter.toIntent(intent);
-        startActivityForResult(intent, 1);
-    }
-
-    private void saveFilter() {
-        SharedPreferences preferences = getPreferences(MODE_PRIVATE);
-        filter.toSharedPreferences(preferences);
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.apply();
-    }
-
-    @Override
-    protected Cursor createCursor() {
-        retrieveData();
-        return null;
-    }
-
-    @Override
-    protected ListAdapter createAdapter(Cursor cursor) {
-        return null;
-    }
-
-    @Override
-    protected void deleteItem(View v, int position, long id) {
-    }
-
-    @Override
-    protected void editItem(View v, int position, long id) {
-    }
-
-    @Override
-    protected void viewItem(View v, int position, long id) {
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK) {
-            DateTimeCriteria c = WhereFilter.dateTimeFromIntent(data);
-            applyDateTimeCriteria(c);
-            saveFilter();
-            retrieveData();
-        }
-    }
-
-    private PlannerTask task;
-
-    private void retrieveData() {
-        if (task != null) {
-            task.cancel(true);
-        }
-        task = new PlannerTask(filter);
-        task.execute();
-    }
 
     private class PlannerTask extends AsyncTask<Void, Void, TransactionList> {
 
@@ -166,6 +59,118 @@ public class PlannerActivity extends AbstractListActivity {
 
     }
 
+    private WhereFilter filter = WhereFilter.empty();
+
+    private TextView filterText;
+
+    private PlannerTask task;
+
+    private TextView totalText;
+
+    public PlannerActivity() {
+        super(R.layout.planner);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == RESULT_OK) {
+            DateTimeCriteria c = WhereFilter.dateTimeFromIntent(data);
+            applyDateTimeCriteria(c);
+            saveFilter();
+            retrieveData();
+        }
+    }
+
+    @Override
+    protected ListAdapter createAdapter(Cursor cursor) {
+        return null;
+    }
+
+    @Override
+    protected Cursor createCursor() {
+        retrieveData();
+        return null;
+    }
+
+    @Override
+    protected void deleteItem(View v, int position, long id) {
+    }
+
+    @Override
+    protected void editItem(View v, int position, long id) {
+    }
+
+    @Override
+    protected void internalOnCreate(Bundle savedInstanceState) {
+        totalText = findViewById(R.id.total);
+        filterText = findViewById(R.id.period);
+        ImageButton bFilter = findViewById(R.id.bFilter);
+        bFilter.setOnClickListener(view -> showFilter());
+
+        loadFilter();
+        setupFilter();
+        FilterState.updateFilterColor(this, filter, bFilter);
+    }
+
+    @Override
+    protected void viewItem(View v, int position, long id) {
+    }
+
+    private void applyDateTimeCriteria(DateTimeCriteria criteria) {
+        if (criteria == null) {
+            Calendar date = Calendar.getInstance();
+            date.add(Calendar.MONTH, 1);
+            criteria = new DateTimeCriteria(PeriodType.THIS_MONTH);
+        }
+        long now = System.currentTimeMillis();
+        if (now > criteria.getLongValue1()) {
+            Period period = criteria.getPeriod();
+            period.start = now;
+            criteria = new DateTimeCriteria(period);
+        }
+        filter.put(criteria);
+    }
+
+    private void loadFilter() {
+        SharedPreferences preferences = getPreferences(MODE_PRIVATE);
+        filter = WhereFilter.fromSharedPreferences(preferences);
+        applyDateTimeCriteria(filter.getDateTime());
+    }
+
+    private void retrieveData() {
+        if (task != null) {
+            task.cancel(true);
+        }
+        task = new PlannerTask(filter);
+        task.execute();
+    }
+
+    private void saveFilter() {
+        SharedPreferences preferences = getPreferences(MODE_PRIVATE);
+        filter.toSharedPreferences(preferences);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.apply();
+    }
+
+    private void setTotals(Total[] totals) {
+        Utils u = new Utils(this);
+        u.setTotal(totalText, totals[0]);
+    }
+
+    private void setupFilter() {
+        if (filter.isEmpty()) {
+            applyDateTimeCriteria(null);
+        }
+    }
+
+    private void showFilter() {
+        Intent intent = new Intent(this, DateFilterActivity.class);
+        intent.putExtra(DateFilterActivity.EXTRA_FILTER_DONT_SHOW_NO_FILTER, true);
+        intent.putExtra(DateFilterActivity.EXTRA_FILTER_SHOW_PLANNER, true);
+        filter.toIntent(intent);
+        startActivityForResult(intent, 1);
+    }
+
     private void updateFilterText(WhereFilter filter) {
         Criteria c = filter.get(DatabaseHelper.ReportColumns.DATETIME);
         if (c != null) {
@@ -174,11 +179,6 @@ public class PlannerActivity extends AbstractListActivity {
         } else {
             filterText.setText(R.string.no_filter);
         }
-    }
-
-    private void setTotals(Total[] totals) {
-        Utils u = new Utils(this);
-        u.setTotal(totalText, totals[0]);
     }
 
 }

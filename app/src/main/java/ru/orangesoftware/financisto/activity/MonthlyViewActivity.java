@@ -13,13 +13,11 @@ import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.PopupMenu;
 import android.widget.TextView;
-
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.adapter.CreditCardStatementAdapter;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
@@ -41,33 +39,101 @@ import ru.orangesoftware.financisto.utils.Utils;
  */
 public class MonthlyViewActivity extends ListActivity {
 
+    private class MonthlyPreviewTask extends AsyncTask<Void, Void, TransactionList> {
+
+        private final Date close;
+
+        private final Date now;
+
+        private final Date open;
+
+        private MonthlyPreviewTask(Date open, Date close, Date now) {
+            this.open = open;
+            this.close = close;
+            this.now = now;
+        }
+
+        @Override
+        protected TransactionList doInBackground(Void... voids) {
+            MonthlyViewPlanner planner = new MonthlyViewPlanner(db, account, isStatementPreview, open, close, now);
+            TransactionList transactions;
+            if (isStatementPreview) {
+                transactions = planner.getCreditCardStatement();
+            } else {
+                transactions = planner.getPlannedTransactionsWithTotals();
+            }
+            return transactions;
+        }
+
+        @Override
+        protected void onPostExecute(TransactionList monthlyPreviewReport) {
+            List<TransactionInfo> transactions = monthlyPreviewReport.transactions;
+            long total = monthlyPreviewReport.totals[0].balance;
+            if (transactions == null || transactions.isEmpty()) {
+                displayNoTransactions();
+            } else { // display data
+
+                // Mapping data to view
+                CreditCardStatementAdapter expenses = new CreditCardStatementAdapter(MonthlyViewActivity.this,
+                        R.layout.credit_card_transaction, transactions, currency, accountId);
+                expenses.setStatementPreview(isStatementPreview);
+                setListAdapter(expenses);
+
+                // calculate total
+                // display total
+                TextView totalText = (TextView) findViewById(R.id.monthly_result);
+                if (isStatementPreview) {
+                    u.setAmountText(totalText, currency, (-1) * total, false);
+                    totalText.setTextColor(Color.BLACK);
+                } else {
+                    if (total < 0) {
+                        u.setAmountText(totalText, currency, (-1) * total, false);
+                        u.setNegativeColor(totalText);
+                    } else {
+                        u.setAmountText(totalText, currency, total, false);
+                        u.setPositiveColor(totalText);
+                    }
+                }
+            }
+        }
+
+        @Override
+        protected void onPreExecute() {
+            ((TextView) findViewById(android.R.id.empty)).setText(R.string.calculating);
+        }
+    }
+
     public static final String ACCOUNT_EXTRA = "account_id";
+
     public static final String BILL_PREVIEW_EXTRA = "bill_preview";
 
-    private DatabaseAdapter db;
+    private Account account;
 
     private long accountId = 0;
-    private Account account;
-    private Currency currency;
-    private boolean isCreditCard = false;
-    private boolean isStatementPreview = false;
 
-    private String title;
-    private int closingDay = 0;
-    private int paymentDay = 0;
-
-    private int month = 0;
-    private int year = 0;
     private Calendar closingDate;
 
-    private Utils u;
+    private int closingDay = 0;
+
+    private Currency currency;
 
     private MonthlyPreviewTask currentTask;
 
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
-    }
+    private DatabaseAdapter db;
+
+    private boolean isCreditCard = false;
+
+    private boolean isStatementPreview = false;
+
+    private int month = 0;
+
+    private int paymentDay = 0;
+
+    private String title;
+
+    private Utils u;
+
+    private int year = 0;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -85,18 +151,27 @@ public class MonthlyViewActivity extends ListActivity {
         popupMenu();
     }
 
+    // Update view
     @Override
-    public void onDestroy() {
-        cancelCurrentTask();
-        db.close();
-        super.onDestroy();
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (resultCode) {
+            case RESULT_OK:
+                int update = data.getIntExtra(CCardStatementClosingDayActivity.UPDATE_VIEW, 0);
+                if (update > 0) {
+                    setCCardTitle();
+                    setCCardInterval();
+                }
+                break;
+            case RESULT_CANCELED:
+                break;
+        }
     }
 
-    private void cancelCurrentTask() {
-        if (currentTask != null) {
-            currentTask.cancel(true);
-            currentTask = null;
-        }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        PinProtection.unlock(this);
     }
 
     @Override
@@ -106,9 +181,79 @@ public class MonthlyViewActivity extends ListActivity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        PinProtection.unlock(this);
+    public void onDestroy() {
+        cancelCurrentTask();
+        db.close();
+        super.onDestroy();
+    }
+
+    public void onPopupMenuSelected(int id) {
+        switch (id) {
+            case R.id.opt_menu_closing_day:
+                // call credit card closing day sending period
+                Intent intent = new Intent(this, CCardStatementClosingDayActivity.class);
+                int closingDay = getClosingDate(month, year).get(Calendar.DAY_OF_MONTH);
+                intent.putExtra(CCardStatementClosingDayActivity.PERIOD_MONTH, closingDate.get(Calendar.MONTH));
+                intent.putExtra(CCardStatementClosingDayActivity.PERIOD_YEAR, closingDate.get(Calendar.YEAR));
+                intent.putExtra(CCardStatementClosingDayActivity.ACCOUNT, accountId);
+                intent.putExtra(CCardStatementClosingDayActivity.REGULAR_CLOSING_DAY, closingDay);
+                startActivityForResult(intent, 16);
+        }
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
+    }
+
+    private void cancelCurrentTask() {
+        if (currentTask != null) {
+            currentTask.cancel(true);
+            currentTask = null;
+        }
+    }
+
+    private void displayNoTransactions() {
+        TextView totalText = (TextView) findViewById(R.id.monthly_result);
+        // display total = 0
+        u.setAmountText(totalText, currency, 0, false);
+        totalText.setTextColor(Color.BLACK);
+        // hide list and display empty message
+        ((TextView) findViewById(android.R.id.empty)).setText(R.string.no_transactions);
+        setListAdapter(null);
+    }
+
+    /**
+     * Get data for a given period and display the related credit card expenses.
+     *
+     * @param open  Start of period.
+     * @param close End of period.
+     */
+    private void fillData(Calendar open, Calendar close) {
+        cancelCurrentTask();
+        currentTask = new MonthlyPreviewTask(open.getTime(), close.getTime(), new Date());
+        currentTask.execute();
+    }
+
+    // Returns the day on which the credit card bill closes for a given month/year.
+    private Calendar getClosingDate(int month, int year) {
+        int m = month;
+        if (closingDay > paymentDay) {
+            m--;
+        }
+        int maxDay = getLastDayOfMonth(m, year);
+        int day = closingDay;
+        if (closingDay > maxDay) {
+            day = maxDay;
+        }
+
+        return new GregorianCalendar(year, m - 1, day);
+    }
+
+    private int getLastDayOfMonth(int month, int year) {
+        Calendar calCurr = GregorianCalendar.getInstance();
+        calCurr.set(year, month - 1, 1); // Months are 0 to 11
+        return calCurr.getActualMaximum(GregorianCalendar.DAY_OF_MONTH);
     }
 
     /**
@@ -155,7 +300,8 @@ public class MonthlyViewActivity extends ListActivity {
                     setCCardTitle();
                     setCCardInterval();
                 } else {
-                    title = (account.title == null || account.title.length() == 0 ? account.cardIssuer : account.title);
+                    title = (account.title == null || account.title.length() == 0 ? account.cardIssuer
+                            : account.title);
                     paymentDay = 1;
                     closingDay = 31;
                     setTitle();
@@ -241,6 +387,29 @@ public class MonthlyViewActivity extends ListActivity {
         }
     }
 
+    private void popupMenu() {
+        final ImageButton bMenu = (ImageButton) findViewById(R.id.bt_popup);
+        if (isStatementPreview) {
+            bMenu.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    PopupMenu popupMenu = new PopupMenu(MonthlyViewActivity.this, bMenu);
+                    MenuInflater inflater = getMenuInflater();
+                    inflater.inflate(R.menu.statement_preview_menu, popupMenu.getMenu());
+                    popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                        @Override
+                        public boolean onMenuItemClick(MenuItem item) {
+                            onPopupMenuSelected(item.getItemId());
+                            return true;
+                        }
+                    });
+                    popupMenu.show();
+                }
+            });
+        } else {
+            bMenu.setVisibility(View.GONE);
+        }
+    }
 
     /**
      * Configure the interval based on the bill period of a credit card.
@@ -295,168 +464,6 @@ public class MonthlyViewActivity extends ListActivity {
         fillData(open, close);
     }
 
-    private void popupMenu() {
-        final ImageButton bMenu = (ImageButton) findViewById(R.id.bt_popup);
-        if (isStatementPreview) {
-            bMenu.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    PopupMenu popupMenu = new PopupMenu(MonthlyViewActivity.this, bMenu);
-                    MenuInflater inflater = getMenuInflater();
-                    inflater.inflate(R.menu.statement_preview_menu, popupMenu.getMenu());
-                    popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-                        @Override
-                        public boolean onMenuItemClick(MenuItem item) {
-                            onPopupMenuSelected(item.getItemId());
-                            return true;
-                        }
-                    });
-                    popupMenu.show();
-                }
-            });
-        } else {
-            bMenu.setVisibility(View.GONE);
-        }
-    }
-
-    public void onPopupMenuSelected(int id) {
-        switch (id) {
-            case R.id.opt_menu_closing_day:
-                // call credit card closing day sending period
-                Intent intent = new Intent(this, CCardStatementClosingDayActivity.class);
-                int closingDay = getClosingDate(month, year).get(Calendar.DAY_OF_MONTH);
-                intent.putExtra(CCardStatementClosingDayActivity.PERIOD_MONTH, closingDate.get(Calendar.MONTH));
-                intent.putExtra(CCardStatementClosingDayActivity.PERIOD_YEAR, closingDate.get(Calendar.YEAR));
-                intent.putExtra(CCardStatementClosingDayActivity.ACCOUNT, accountId);
-                intent.putExtra(CCardStatementClosingDayActivity.REGULAR_CLOSING_DAY, closingDay);
-                startActivityForResult(intent, 16);
-        }
-    }
-
-    /**
-     * Configure the interval in a monthly perspective.
-     * Attention:
-     * Calendar.MONTH = 0 to 11
-     * integer  month = 1 to 12
-     */
-    private void setInterval() {
-
-        Calendar close = new GregorianCalendar(year, month - 1, getLastDayOfMonth(month, year));
-        Calendar open = new GregorianCalendar(year, month - 1, 1);
-
-        // adjust time for closing day
-        close.set(Calendar.HOUR_OF_DAY, 23);
-        close.set(Calendar.MINUTE, 59);
-        close.set(Calendar.SECOND, 59);
-        close.set(Calendar.MILLISECOND, 999);
-
-        fillData(open, close);
-    }
-
-    // Returns the day on which the credit card bill closes for a given month/year.
-    private Calendar getClosingDate(int month, int year) {
-        int m = month;
-        if (closingDay > paymentDay) {
-            m--;
-        }
-        int maxDay = getLastDayOfMonth(m, year);
-        int day = closingDay;
-        if (closingDay > maxDay) {
-            day = maxDay;
-        }
-
-        return new GregorianCalendar(year, m - 1, day);
-    }
-
-    private int getLastDayOfMonth(int month, int year) {
-        Calendar calCurr = GregorianCalendar.getInstance();
-        calCurr.set(year, month - 1, 1); // Months are 0 to 11
-        return calCurr.getActualMaximum(GregorianCalendar.DAY_OF_MONTH);
-    }
-
-    private class MonthlyPreviewTask extends AsyncTask<Void, Void, TransactionList> {
-
-        private final Date open;
-        private final Date close;
-        private final Date now;
-
-        private MonthlyPreviewTask(Date open, Date close, Date now) {
-            this.open = open;
-            this.close = close;
-            this.now = now;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            ((TextView) findViewById(android.R.id.empty)).setText(R.string.calculating);
-        }
-
-        @Override
-        protected TransactionList doInBackground(Void... voids) {
-            MonthlyViewPlanner planner = new MonthlyViewPlanner(db, account, isStatementPreview, open, close, now);
-            TransactionList transactions;
-            if (isStatementPreview) {
-                transactions = planner.getCreditCardStatement();
-            } else {
-                transactions = planner.getPlannedTransactionsWithTotals();
-            }
-            return transactions;
-        }
-
-        @Override
-        protected void onPostExecute(TransactionList monthlyPreviewReport) {
-            List<TransactionInfo> transactions = monthlyPreviewReport.transactions;
-            long total = monthlyPreviewReport.totals[0].balance;
-            if (transactions == null || transactions.isEmpty()) {
-                displayNoTransactions();
-            } else { // display data
-
-                // Mapping data to view
-                CreditCardStatementAdapter expenses = new CreditCardStatementAdapter(MonthlyViewActivity.this, R.layout.credit_card_transaction, transactions, currency, accountId);
-                expenses.setStatementPreview(isStatementPreview);
-                setListAdapter(expenses);
-
-                // calculate total
-                // display total
-                TextView totalText = (TextView) findViewById(R.id.monthly_result);
-                if (isStatementPreview) {
-                    u.setAmountText(totalText, currency, (-1) * total, false);
-                    totalText.setTextColor(Color.BLACK);
-                } else {
-                    if (total < 0) {
-                        u.setAmountText(totalText, currency, (-1) * total, false);
-                        u.setNegativeColor(totalText);
-                    } else {
-                        u.setAmountText(totalText, currency, total, false);
-                        u.setPositiveColor(totalText);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Get data for a given period and display the related credit card expenses.
-     *
-     * @param open  Start of period.
-     * @param close End of period.
-     */
-    private void fillData(Calendar open, Calendar close) {
-        cancelCurrentTask();
-        currentTask = new MonthlyPreviewTask(open.getTime(), close.getTime(), new Date());
-        currentTask.execute();
-    }
-
-    private void displayNoTransactions() {
-        TextView totalText = (TextView) findViewById(R.id.monthly_result);
-        // display total = 0
-        u.setAmountText(totalText, currency, 0, false);
-        totalText.setTextColor(Color.BLACK);
-        // hide list and display empty message
-        ((TextView) findViewById(android.R.id.empty)).setText(R.string.no_transactions);
-        setListAdapter(null);
-    }
-
     /**
      * Adjust the title based on the credit card's payment day.
      */
@@ -489,6 +496,26 @@ public class MonthlyViewActivity extends ListActivity {
     }
 
     /**
+     * Configure the interval in a monthly perspective.
+     * Attention:
+     * Calendar.MONTH = 0 to 11
+     * integer  month = 1 to 12
+     */
+    private void setInterval() {
+
+        Calendar close = new GregorianCalendar(year, month - 1, getLastDayOfMonth(month, year));
+        Calendar open = new GregorianCalendar(year, month - 1, 1);
+
+        // adjust time for closing day
+        close.set(Calendar.HOUR_OF_DAY, 23);
+        close.set(Calendar.MINUTE, 59);
+        close.set(Calendar.SECOND, 59);
+        close.set(Calendar.MILLISECOND, 999);
+
+        fillData(open, close);
+    }
+
+    /**
      * Adjust the title based on the credit card's payment day.
      */
     private void setTitle() {
@@ -501,23 +528,6 @@ public class MonthlyViewActivity extends ListActivity {
         TextView label = (TextView) findViewById(R.id.monthly_view_title);
         label.setText(title + "\n" + pd);
 
-    }
-
-    // Update view
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        switch (resultCode) {
-            case RESULT_OK:
-                int update = data.getIntExtra(CCardStatementClosingDayActivity.UPDATE_VIEW, 0);
-                if (update > 0) {
-                    setCCardTitle();
-                    setCCardInterval();
-                }
-                break;
-            case RESULT_CANCELED:
-                break;
-        }
     }
 
 }

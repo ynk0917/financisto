@@ -38,12 +38,183 @@ public abstract class EntityManager {
     // effectively immutable
     protected SQLiteOpenHelper databaseHelper;
 
+    public static <T> T loadFromCursor(Cursor c, Class<T> clazz) {
+        EntityDefinition ed = getEntityDefinitionOrThrow(clazz);
+        try {
+            return (T) loadFromCursor("e", c, ed);
+        } catch (Exception e) {
+            throw new PersistenceException("Unable to load entity of type " + clazz + " from cursor", e);
+        }
+    }
+
     public EntityManager(SQLiteOpenHelper databaseHelper) {
         this.databaseHelper = databaseHelper;
     }
 
+    public <T> Query<T> createQuery(Class<T> clazz) {
+        return new Query<>(this, clazz);
+    }
+
     public SQLiteDatabase db() {
         return databaseHelper.getWritableDatabase();
+    }
+
+    public <T> int delete(Class<T> clazz, Object id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Id can't be null");
+        }
+        EntityDefinition ed = getEntityDefinitionOrThrow(clazz);
+        return db().delete(ed.tableName, ed.idField.columnName + "=?", new String[]{id.toString()});
+    }
+
+    public <T extends MyEntity> long duplicate(Class<T> clazz, Object id) {
+        T obj = load(clazz, id);
+        if (obj == null) {
+            return -1;
+        }
+
+        obj.id = -1;
+        return saveOrUpdate(obj);
+    }
+
+    public <T> T get(Class<T> clazz, Object id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Id can't be null");
+        }
+        EntityDefinition ed = getEntityDefinitionOrThrow(clazz);
+        String sql = ed.sqlQuery + " where e_" + ed.idField.columnName + "=?";
+        try (Cursor c = db().rawQuery(sql, new String[]{id.toString()})) {
+            if (c.moveToFirst()) {
+                try {
+                    return (T) loadFromCursor("e", c, ed);
+                } catch (Exception e) {
+                    throw new PersistenceException("Unable to load entity of type " + clazz + " with id " + id, e);
+                }
+            }
+        }
+        return null;
+    }
+
+    public <T> List<T> list(Class<T> clazz) {
+        EntityDefinition ed = getEntityDefinitionOrThrow(clazz);
+        try (Cursor c = db().rawQuery(ed.sqlQuery, null)) {
+            List<T> list = new LinkedList<>();
+            while (c.moveToNext()) {
+                try {
+                    T t = loadFromCursor("e", c, ed);
+                    list.add(t);
+                } catch (Exception e) {
+                    throw new PersistenceException("Unable to list entites of type " + clazz, e);
+                }
+            }
+            return list;
+        }
+    }
+
+    public <T> T load(Class<T> clazz, Object id) {
+        T e = get(clazz, id);
+        if (e != null) {
+            return e;
+        } else {
+            throw new EntityNotFoundException(clazz, id);
+        }
+    }
+
+    public long reInsert(Object entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("Entity is null");
+        }
+        SQLiteDatabase db = db();
+        EntityDefinition ed = getEntityDefinitionOrThrow(entity.getClass());
+        ContentValues values = getContentValues(ed, entity);
+        long id = ed.getId(entity);
+        long newId = db.insertOrThrow(ed.tableName, null, values);
+        if (id != newId) {
+            throw new IllegalArgumentException("Unable to re-insert " + entity.getClass() + " with id " + id);
+        }
+        return id;
+    }
+
+    public long saveOrUpdate(Object entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("Entity is null");
+        }
+        SQLiteDatabase db = db();
+        EntityDefinition ed = getEntityDefinitionOrThrow(entity.getClass());
+        ContentValues values = getContentValues(ed, entity);
+        long id = ed.getId(entity);
+        values.remove("updated_on");
+        values.put("updated_on", System.currentTimeMillis());
+        if (id <= 0) {
+            values.remove(ed.idField.columnName);
+            id = db.insertOrThrow(ed.tableName, null, values);
+            ed.setId(entity, id);
+            return id;
+        } else {
+            values.remove("updated_on");
+            values.put("updated_on", System.currentTimeMillis());
+            db.update(ed.tableName, values, ed.idField.columnName + "=?", new String[]{String.valueOf(id)});
+            return id;
+        }
+    }
+
+    private ContentValues getContentValues(EntityDefinition ed, Object entity) {
+        ContentValues values = new ContentValues();
+        FieldInfo[] fields = ed.fields;
+        for (FieldInfo fi : fields) {
+            try {
+                if (fi.type.isPrimitive()) {
+                    Object value = fi.field.get(entity);
+                    fi.type.setValue(values, fi.columnName, value);
+                } else {
+                    Object e = fi.field.get(entity);
+                    if (e == null) {
+                        values.putNull(fi.columnName);
+                    } else {
+                        EntityDefinition eed = getEntityDefinitionOrThrow(e.getClass());
+                        FieldInfo ffi = eed.idField;
+                        Object value = ffi.field.get(e);
+                        ffi.type.setValue(values, fi.columnName, value);
+                    }
+                }
+            } catch (Exception e) {
+                throw new PersistenceException("Unable to create content values for " + entity, e);
+            }
+        }
+        return values;
+    }
+
+    static EntityDefinition getEntityDefinitionOrThrow(Class<?> clazz) {
+        EntityDefinition ed = definitions.get(clazz);
+        if (ed == null) {
+            EntityDefinition ned = parseDefinition(clazz);
+            ed = definitions.putIfAbsent(clazz, ned);
+            if (ed == null) {
+                ed = ned;
+            }
+        }
+        return ed;
+    }
+
+    private static <T> T loadFromCursor(String pe, Cursor c, EntityDefinition ed) throws Exception {
+        int idIndex = c.getColumnIndexOrThrow(pe + "__id");
+        if (c.isNull(idIndex)) {
+            return null;
+        }
+        @SuppressWarnings("unchecked")
+        T entity = (T) ed.constructor.newInstance();
+        FieldInfo[] fields = ed.fields;
+        for (FieldInfo fi : fields) {
+            Object value;
+            if (fi.type.isPrimitive()) {
+                value = fi.type.getValueFromCursor(c, pe + "_" + fi.columnName);
+            } else {
+                EntityDefinition eed = getEntityDefinitionOrThrow(fi.field.getType());
+                value = loadFromCursor(pe + fi.index, c, eed);
+            }
+            fi.field.set(entity, value);
+        }
+        return entity;
     }
 
     private static EntityDefinition parseDefinition(Class<?> clazz) {
@@ -92,175 +263,6 @@ public abstract class EntityManager {
             columnName = f.getName().toUpperCase();
         }
         return FieldInfo.primitive(f, columnName);
-    }
-
-    static EntityDefinition getEntityDefinitionOrThrow(Class<?> clazz) {
-        EntityDefinition ed = definitions.get(clazz);
-        if (ed == null) {
-            EntityDefinition ned = parseDefinition(clazz);
-            ed = definitions.putIfAbsent(clazz, ned);
-            if (ed == null) {
-                ed = ned;
-            }
-        }
-        return ed;
-    }
-
-    public <T extends MyEntity> long duplicate(Class<T> clazz, Object id) {
-        T obj = load(clazz, id);
-        if (obj == null) return -1;
-
-        obj.id = -1;
-        return saveOrUpdate(obj);
-    }
-
-    public long saveOrUpdate(Object entity) {
-        if (entity == null) {
-            throw new IllegalArgumentException("Entity is null");
-        }
-        SQLiteDatabase db = db();
-        EntityDefinition ed = getEntityDefinitionOrThrow(entity.getClass());
-        ContentValues values = getContentValues(ed, entity);
-        long id = ed.getId(entity);
-        values.remove("updated_on");
-        values.put("updated_on", System.currentTimeMillis());
-        if (id <= 0) {
-            values.remove(ed.idField.columnName);
-            id = db.insertOrThrow(ed.tableName, null, values);
-            ed.setId(entity, id);
-            return id;
-        } else {
-            values.remove("updated_on");
-            values.put("updated_on", System.currentTimeMillis());
-            db.update(ed.tableName, values, ed.idField.columnName + "=?", new String[]{String.valueOf(id)});
-            return id;
-        }
-    }
-
-    public long reInsert(Object entity) {
-        if (entity == null) {
-            throw new IllegalArgumentException("Entity is null");
-        }
-        SQLiteDatabase db = db();
-        EntityDefinition ed = getEntityDefinitionOrThrow(entity.getClass());
-        ContentValues values = getContentValues(ed, entity);
-        long id = ed.getId(entity);
-        long newId = db.insertOrThrow(ed.tableName, null, values);
-        if (id != newId) {
-            throw new IllegalArgumentException("Unable to re-insert " + entity.getClass() + " with id " + id);
-        }
-        return id;
-    }
-
-    private ContentValues getContentValues(EntityDefinition ed, Object entity) {
-        ContentValues values = new ContentValues();
-        FieldInfo[] fields = ed.fields;
-        for (FieldInfo fi : fields) {
-            try {
-                if (fi.type.isPrimitive()) {
-                    Object value = fi.field.get(entity);
-                    fi.type.setValue(values, fi.columnName, value);
-                } else {
-                    Object e = fi.field.get(entity);
-                    if (e == null) {
-                        values.putNull(fi.columnName);
-                    } else {
-                        EntityDefinition eed = getEntityDefinitionOrThrow(e.getClass());
-                        FieldInfo ffi = eed.idField;
-                        Object value = ffi.field.get(e);
-                        ffi.type.setValue(values, fi.columnName, value);
-                    }
-                }
-            } catch (Exception e) {
-                throw new PersistenceException("Unable to create content values for " + entity, e);
-            }
-        }
-        return values;
-    }
-
-    public <T> T load(Class<T> clazz, Object id) {
-        T e = get(clazz, id);
-        if (e != null) {
-            return e;
-        } else {
-            throw new EntityNotFoundException(clazz, id);
-        }
-    }
-
-    public <T> T get(Class<T> clazz, Object id) {
-        if (id == null) {
-            throw new IllegalArgumentException("Id can't be null");
-        }
-        EntityDefinition ed = getEntityDefinitionOrThrow(clazz);
-        String sql = ed.sqlQuery + " where e_" + ed.idField.columnName + "=?";
-        try (Cursor c = db().rawQuery(sql, new String[]{id.toString()})) {
-            if (c.moveToFirst()) {
-                try {
-                    return (T) loadFromCursor("e", c, ed);
-                } catch (Exception e) {
-                    throw new PersistenceException("Unable to load entity of type " + clazz + " with id " + id, e);
-                }
-            }
-        }
-        return null;
-    }
-
-    public <T> List<T> list(Class<T> clazz) {
-        EntityDefinition ed = getEntityDefinitionOrThrow(clazz);
-        try (Cursor c = db().rawQuery(ed.sqlQuery, null)) {
-            List<T> list = new LinkedList<>();
-            while (c.moveToNext()) {
-                try {
-                    T t = loadFromCursor("e", c, ed);
-                    list.add(t);
-                } catch (Exception e) {
-                    throw new PersistenceException("Unable to list entites of type " + clazz, e);
-                }
-            }
-            return list;
-        }
-    }
-
-    public static <T> T loadFromCursor(Cursor c, Class<T> clazz) {
-        EntityDefinition ed = getEntityDefinitionOrThrow(clazz);
-        try {
-            return (T) loadFromCursor("e", c, ed);
-        } catch (Exception e) {
-            throw new PersistenceException("Unable to load entity of type " + clazz + " from cursor", e);
-        }
-    }
-
-    private static <T> T loadFromCursor(String pe, Cursor c, EntityDefinition ed) throws Exception {
-        int idIndex = c.getColumnIndexOrThrow(pe + "__id");
-        if (c.isNull(idIndex)) {
-            return null;
-        }
-        @SuppressWarnings("unchecked")
-        T entity = (T) ed.constructor.newInstance();
-        FieldInfo[] fields = ed.fields;
-        for (FieldInfo fi : fields) {
-            Object value;
-            if (fi.type.isPrimitive()) {
-                value = fi.type.getValueFromCursor(c, pe + "_" + fi.columnName);
-            } else {
-                EntityDefinition eed = getEntityDefinitionOrThrow(fi.field.getType());
-                value = loadFromCursor(pe + fi.index, c, eed);
-            }
-            fi.field.set(entity, value);
-        }
-        return entity;
-    }
-
-    public <T> int delete(Class<T> clazz, Object id) {
-        if (id == null) {
-            throw new IllegalArgumentException("Id can't be null");
-        }
-        EntityDefinition ed = getEntityDefinitionOrThrow(clazz);
-        return db().delete(ed.tableName, ed.idField.columnName + "=?", new String[]{id.toString()});
-    }
-
-    public <T> Query<T> createQuery(Class<T> clazz) {
-        return new Query<>(this, clazz);
     }
 
 }

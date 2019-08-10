@@ -1,15 +1,14 @@
 package ru.orangesoftware.financisto.utils;
 
 import android.content.Context;
-
 import java.util.Date;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.datetime.DateUtils;
 
 public class IntegrityCheckAutobackup implements IntegrityCheck {
 
     private final Context context;
+
     private final long threshold;
 
     public IntegrityCheckAutobackup(Context context, long threshold) {

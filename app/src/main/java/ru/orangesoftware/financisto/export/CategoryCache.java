@@ -8,17 +8,16 @@
 
 package ru.orangesoftware.financisto.export;
 
-import android.database.sqlite.SQLiteDatabase;
-import ru.orangesoftware.financisto.db.DatabaseAdapter;
-import ru.orangesoftware.financisto.model.Category;
-import ru.orangesoftware.financisto.model.CategoryTree;
+import static ru.orangesoftware.financisto.utils.Utils.isEmpty;
 
+import android.database.sqlite.SQLiteDatabase;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static ru.orangesoftware.financisto.utils.Utils.isEmpty;
+import ru.orangesoftware.financisto.db.DatabaseAdapter;
+import ru.orangesoftware.financisto.model.Category;
+import ru.orangesoftware.financisto.model.CategoryTree;
 
 /**
  * Created by IntelliJ IDEA.
@@ -26,6 +25,14 @@ import static ru.orangesoftware.financisto.utils.Utils.isEmpty;
  * Date: 5/29/12 2:25 PM
  */
 public class CategoryCache {
+
+    public Map<String, Category> categoryNameToCategory = new HashMap<String, Category>();
+
+    public CategoryTree<Category> categoryTree = new CategoryTree<Category>();
+
+    private boolean freshStart = true;
+
+    private AtomicLong seq = new AtomicLong(1);
 
     public static String extractCategoryName(String name) {
         int i = name.indexOf('/');
@@ -35,34 +42,12 @@ public class CategoryCache {
         return name;
     }
 
-    public Map<String, Category> categoryNameToCategory = new HashMap<String, Category>();
-    public CategoryTree<Category> categoryTree = new CategoryTree<Category>();
-    private AtomicLong seq = new AtomicLong(1);
-
-    private boolean freshStart = true;
-    
-    public void loadExistingCategories(DatabaseAdapter db) {
-        categoryTree = db.getCategoriesTree(false);
-        long maxId = updateNameToCategoryMapping(categoryTree, 0);
-        seq = new AtomicLong(maxId+1);
-        freshStart = false;
-    }
-
-    private long updateNameToCategoryMapping(CategoryTree<Category> categoryTree, long maxId) {
-        for (Category category : categoryTree) {
-            String name = CategoryInfo.buildName(category);
-            categoryNameToCategory.put(name, category);
-            if (category.id > maxId) {
-                maxId = category.id;
-            }
-            if (category.hasChildren()) {
-                long childMaxId = updateNameToCategoryMapping(category.children, maxId);
-                if (childMaxId > maxId) {
-                    maxId = childMaxId;
-                }
-            }
+    public Category findCategory(String category) {
+        if (isEmpty(category)) {
+            return null;
         }
-        return maxId;
+        String name = extractCategoryName(category);
+        return categoryNameToCategory.get(name);
     }
 
     public void insertCategories(DatabaseAdapter dbAdapter, Set<? extends CategoryInfo> categories) {
@@ -85,25 +70,11 @@ public class CategoryCache {
         }
     }
 
-    private Category insertCategory(String name, boolean isIncome) {
-        if (isChildCategory(name)) {
-            return insertChildCategory(name, isIncome);
-        } else {
-            return insertRootCategory(name, isIncome);
-        }
-    }
-
-    private boolean isChildCategory(String name) {
-        return name.contains(":");
-    }
-
-    private Category insertRootCategory(String name, boolean income) {
-        Category c = categoryNameToCategory.get(name);
-        if (c == null) {
-            c = createCategoryInCache(name, name, income);
-            categoryTree.add(c);
-        }
-        return c;
+    public void loadExistingCategories(DatabaseAdapter db) {
+        categoryTree = db.getCategoriesTree(false);
+        long maxId = updateNameToCategoryMapping(categoryTree, 0);
+        seq = new AtomicLong(maxId + 1);
+        freshStart = false;
     }
 
     private Category createCategoryInCache(String fullName, String name, boolean income) {
@@ -117,10 +88,18 @@ public class CategoryCache {
         return c;
     }
 
+    private Category insertCategory(String name, boolean isIncome) {
+        if (isChildCategory(name)) {
+            return insertChildCategory(name, isIncome);
+        } else {
+            return insertRootCategory(name, isIncome);
+        }
+    }
+
     private Category insertChildCategory(String name, boolean income) {
         int i = name.lastIndexOf(':');
         String parentCategoryName = name.substring(0, i);
-        String childCategoryName = name.substring(i+1);
+        String childCategoryName = name.substring(i + 1);
         Category parent = insertCategory(parentCategoryName, income);
         Category child = categoryNameToCategory.get(name);
         if (child == null) {
@@ -130,12 +109,34 @@ public class CategoryCache {
         return child;
     }
 
-    public Category findCategory(String category) {
-        if (isEmpty(category)) {
-            return null;
+    private Category insertRootCategory(String name, boolean income) {
+        Category c = categoryNameToCategory.get(name);
+        if (c == null) {
+            c = createCategoryInCache(name, name, income);
+            categoryTree.add(c);
         }
-        String name = extractCategoryName(category);
-        return categoryNameToCategory.get(name);
+        return c;
+    }
+
+    private boolean isChildCategory(String name) {
+        return name.contains(":");
+    }
+
+    private long updateNameToCategoryMapping(CategoryTree<Category> categoryTree, long maxId) {
+        for (Category category : categoryTree) {
+            String name = CategoryInfo.buildName(category);
+            categoryNameToCategory.put(name, category);
+            if (category.id > maxId) {
+                maxId = category.id;
+            }
+            if (category.hasChildren()) {
+                long childMaxId = updateNameToCategoryMapping(category.children, maxId);
+                if (childMaxId > maxId) {
+                    maxId = childMaxId;
+                }
+            }
+        }
+        return maxId;
     }
 
 }

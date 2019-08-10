@@ -8,20 +8,11 @@
 package ru.orangesoftware.financisto.activity;
 
 import android.app.Activity;
-import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.Toast;
-import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 import ru.orangesoftware.financisto.utils.PinProtection;
-
-import java.io.File;
 
 public abstract class AbstractSyncActivity extends Activity {
 
@@ -35,20 +26,11 @@ public abstract class AbstractSyncActivity extends Activity {
     }
 
     @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
-    }
-
-    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(layoutId);
         internalOnCreate();
     }
-
-    protected abstract void internalOnCreate();
-
-    protected abstract void updateResultIntentFromUi(Intent data);
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -59,6 +41,13 @@ public abstract class AbstractSyncActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        PinProtection.unlock(this);
+        restorePreferences();
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
         PinProtection.lock(this);
@@ -66,14 +55,16 @@ public abstract class AbstractSyncActivity extends Activity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        PinProtection.unlock(this);
-        restorePreferences();
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
     }
+
+    protected abstract void internalOnCreate();
+
+    protected abstract void restorePreferences();
 
     protected abstract void savePreferences();
 
-    protected abstract void restorePreferences();
+    protected abstract void updateResultIntentFromUi(Intent data);
 
 }

@@ -8,11 +8,20 @@
 
 package ru.orangesoftware.financisto.db;
 
-import ru.orangesoftware.financisto.filter.WhereFilter;
-import ru.orangesoftware.financisto.model.*;
-import ru.orangesoftware.financisto.test.*;
-
 import java.util.Map;
+import ru.orangesoftware.financisto.filter.WhereFilter;
+import ru.orangesoftware.financisto.model.Account;
+import ru.orangesoftware.financisto.model.Category;
+import ru.orangesoftware.financisto.model.Currency;
+import ru.orangesoftware.financisto.model.Total;
+import ru.orangesoftware.financisto.model.Transaction;
+import ru.orangesoftware.financisto.test.AccountBuilder;
+import ru.orangesoftware.financisto.test.CategoryBuilder;
+import ru.orangesoftware.financisto.test.CurrencyBuilder;
+import ru.orangesoftware.financisto.test.DateTime;
+import ru.orangesoftware.financisto.test.RateBuilder;
+import ru.orangesoftware.financisto.test.TransactionBuilder;
+import ru.orangesoftware.financisto.test.TransferBuilder;
 
 /**
  * Created by IntelliJ IDEA.
@@ -21,19 +30,26 @@ import java.util.Map;
  */
 public class TransactionsTotalCalculatorTest extends AbstractDbTest {
 
-    Currency c1, c2, c3, c4;
     Account a1, a2, a3;
-    Transaction a1t1_09th, a3t1_10th, a1t2_17th, a2t1_17th, a2t2_18th, a1t3_20th, a1t4_22nd, a1t5_23rd, a1t5_23rd_s1, a1t5_23rd_s2;
 
-    float r_c1c2_17th = 0.78592f;
-    float r_c1c2_18th = 0.78635f;
-    float r_c1c3_5th = 0.62510f;
-    float r_c2c3_5th = 0.12453f;
-
-    float r_c2c1_17th = 1f / r_c1c2_17th;
-    float r_c2c1_18th = 1f / r_c1c2_18th;
+    Transaction a1t1_09th, a3t1_10th, a1t2_17th, a2t1_17th, a2t2_18th, a1t3_20th, a1t4_22nd, a1t5_23rd, a1t5_23rd_s1,
+            a1t5_23rd_s2;
 
     TransactionsTotalCalculator c;
+
+    Currency c1, c2, c3, c4;
+
+    float r_c1c2_17th = 0.78592f;
+
+    float r_c1c2_18th = 0.78635f;
+
+    float r_c1c3_5th = 0.62510f;
+
+    float r_c2c1_17th = 1f / r_c1c2_17th;
+
+    float r_c2c1_18th = 1f / r_c1c2_18th;
+
+    float r_c2c3_5th = 0.12453f;
 
     @Override
     public void setUp() throws Exception {
@@ -71,13 +87,20 @@ public class TransactionsTotalCalculatorTest extends AbstractDbTest {
              23 A2 EUR +100 TT  S
          */
 
-        a1t1_09th = TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 9)).amount(-100).originalAmount(c2, -20).create();
-        a3t1_10th = TransactionBuilder.withDb(db).account(a3).dateTime(DateTime.date(2012, 1, 10)).amount(555).create();
-        a1t2_17th = TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 17).at(13, 30, 0, 0)).amount(100).create();
-        a2t1_17th = TransactionBuilder.withDb(db).account(a2).dateTime(DateTime.date(2012, 1, 17).at(13, 30, 0, 0)).amount(-100).create();
-        a2t2_18th = TransactionBuilder.withDb(db).account(a2).dateTime(DateTime.date(2012, 1, 18).at(18, 40, 0, 0)).amount(-250).create();
-        a1t3_20th = TransferBuilder.withDb(db).fromAccount(a1).toAccount(a2).dateTime(DateTime.date(2012, 1, 20).atNoon()).fromAmount(-50).toAmount(20).create();
-        a1t4_22nd = TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 22).atMidnight()).amount(-450).create();
+        a1t1_09th = TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 9)).amount(-100)
+                .originalAmount(c2, -20).create();
+        a3t1_10th = TransactionBuilder.withDb(db).account(a3).dateTime(DateTime.date(2012, 1, 10)).amount(555)
+                .create();
+        a1t2_17th = TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 17).at(13, 30, 0, 0))
+                .amount(100).create();
+        a2t1_17th = TransactionBuilder.withDb(db).account(a2).dateTime(DateTime.date(2012, 1, 17).at(13, 30, 0, 0))
+                .amount(-100).create();
+        a2t2_18th = TransactionBuilder.withDb(db).account(a2).dateTime(DateTime.date(2012, 1, 18).at(18, 40, 0, 0))
+                .amount(-250).create();
+        a1t3_20th = TransferBuilder.withDb(db).fromAccount(a1).toAccount(a2)
+                .dateTime(DateTime.date(2012, 1, 20).atNoon()).fromAmount(-50).toAmount(20).create();
+        a1t4_22nd = TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 22).atMidnight())
+                .amount(-450).create();
         a1t5_23rd = TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 23)).amount(-200)
                 .withSplit(categories.get("A1"), -50)
                 .withTransferSplit(a2, -150, 100)
@@ -85,7 +108,57 @@ public class TransactionsTotalCalculatorTest extends AbstractDbTest {
         a1t5_23rd_s1 = a1t5_23rd.splits.get(0);
         a1t5_23rd_s2 = a1t5_23rd.splits.get(1);
     }
-    
+
+    public void test_should_calculate_account_total_in_home_currency() {
+        //no conversion
+        assertEquals(a1t1_09th.fromAmount + a1t2_17th.fromAmount + a1t3_20th.fromAmount + a1t4_22nd.fromAmount
+                + a1t5_23rd.fromAmount, c.getAccountBalance(c1, a1.id).balance);
+
+        //note that a1t3_20th is taken from the transfer without conversion
+        assertEquals((long) (a1t1_09th.originalFromAmount + r_c1c2_17th * a1t2_17th.fromAmount - a1t3_20th.toAmount
+                        + r_c1c2_18th * a1t4_22nd.fromAmount + r_c1c2_18th * a1t5_23rd.fromAmount),
+                c.getAccountBalance(c2, a1.id).balance);
+
+        //no conversion
+        assertEquals(a2t1_17th.fromAmount + a2t2_18th.fromAmount + a1t3_20th.toAmount + a1t5_23rd_s2.toAmount,
+                c.getAccountBalance(c2, a2.id).balance);
+
+        //conversion+transfers
+        assertEquals(
+                (long) (r_c2c1_17th * a2t1_17th.fromAmount + r_c2c1_18th * a2t2_18th.fromAmount - a1t3_20th.fromAmount
+                        - a1t5_23rd_s2.fromAmount), c.getAccountBalance(c1, a2.id).balance);
+
+        //conversions
+        assertEquals((long) (r_c1c3_5th * (a1t1_09th.fromAmount + a1t2_17th.fromAmount + a1t3_20th.fromAmount
+                + a1t4_22nd.fromAmount + a1t5_23rd.fromAmount)), c.getAccountBalance(c3, a1.id).balance);
+        assertEquals((long) (r_c2c3_5th * (a2t1_17th.fromAmount + a2t2_18th.fromAmount + a1t3_20th.toAmount
+                + a1t5_23rd_s2.toAmount)), c.getAccountBalance(c3, a2.id).balance);
+    }
+
+    public void test_should_calculate_account_total_in_home_currency_with_big_amounts() {
+        TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 10)).amount(45000000000L).create();
+        //no conversion
+        assertEquals(45000000000L + (long) (-100f + 100f - 50f - 450f - 50f - 150f),
+                c.getAccountBalance(c1, a1.id).balance);
+    }
+
+    public void test_should_calculate_blotter_total_in_home_currency() {
+        assertEquals(
+                (long) (-100f + 100f - (1f / r_c1c2_17th) * 100f - (1f / r_c1c2_18th) * 250f - 50f + 50f - 450f - 50f
+                        - 150f + 150f), c.getBlotterBalance(c1).balance);
+        assertEquals(
+                (long) (-20f + r_c1c2_17th * 100f - 100f - 250f - 20f + 20f - r_c1c2_18th * 450f - r_c1c2_18th * 50f
+                        - 100f + 100f), c.getBlotterBalance(c2).balance);
+        assertEquals(c.getBlotterBalance(c1).balance, c.getBlotterBalanceInHomeCurrency().balance);
+    }
+
+    public void test_should_calculate_blotter_total_in_multiple_currencies() {
+        Total[] totals = c.getTransactionsBalance();
+        assertEquals(2, totals.length);
+        assertEquals(-700, totals[0].balance);
+        assertEquals(-230, totals[1].balance);
+    }
+
     public void test_should_return_error_if_exchange_rate_not_available() {
         TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 10)).amount(1).create();
 
@@ -97,43 +170,6 @@ public class TransactionsTotalCalculatorTest extends AbstractDbTest {
 
         total = c.getAccountBalance(c4, a1.id);
         assertTrue(total.isError());  // no rates at all
-    }
-
-    public void test_should_calculate_blotter_total_in_multiple_currencies() {
-        Total[] totals = c.getTransactionsBalance();
-        assertEquals(2, totals.length);
-        assertEquals(-700, totals[0].balance);
-        assertEquals(-230, totals[1].balance);
-    }
-
-    public void test_should_calculate_blotter_total_in_home_currency() {
-        assertEquals((long)(-100f +100f -(1f/ r_c1c2_17th)*100f -(1f/ r_c1c2_18th)*250f -50f +50f -450f -50f -150f +150f), c.getBlotterBalance(c1).balance);
-        assertEquals((long)(-20f +r_c1c2_17th *100f -100f -250f -20f +20f - r_c1c2_18th *450f - r_c1c2_18th *50f -100f +100f), c.getBlotterBalance(c2).balance);
-        assertEquals(c.getBlotterBalance(c1).balance, c.getBlotterBalanceInHomeCurrency().balance);
-    }
-
-    public void test_should_calculate_account_total_in_home_currency() {
-        //no conversion
-        assertEquals(a1t1_09th.fromAmount + a1t2_17th.fromAmount + a1t3_20th.fromAmount + a1t4_22nd.fromAmount + a1t5_23rd.fromAmount, c.getAccountBalance(c1, a1.id).balance);
-
-        //note that a1t3_20th is taken from the transfer without conversion
-        assertEquals((long) (a1t1_09th.originalFromAmount + r_c1c2_17th*a1t2_17th.fromAmount - a1t3_20th.toAmount + r_c1c2_18th *a1t4_22nd.fromAmount + r_c1c2_18th *a1t5_23rd.fromAmount), c.getAccountBalance(c2, a1.id).balance);
-
-        //no conversion
-        assertEquals(a2t1_17th.fromAmount + a2t2_18th.fromAmount + a1t3_20th.toAmount + a1t5_23rd_s2.toAmount, c.getAccountBalance(c2, a2.id).balance);
-
-        //conversion+transfers
-        assertEquals((long) (r_c2c1_17th *a2t1_17th.fromAmount + r_c2c1_18th *a2t2_18th.fromAmount - a1t3_20th.fromAmount - a1t5_23rd_s2.fromAmount), c.getAccountBalance(c1, a2.id).balance);
-
-        //conversions
-        assertEquals((long) (r_c1c3_5th * (a1t1_09th.fromAmount + a1t2_17th.fromAmount + a1t3_20th.fromAmount + a1t4_22nd.fromAmount + a1t5_23rd.fromAmount)), c.getAccountBalance(c3, a1.id).balance);
-        assertEquals((long) (r_c2c3_5th * (a2t1_17th.fromAmount + a2t2_18th.fromAmount + a1t3_20th.toAmount + a1t5_23rd_s2.toAmount)), c.getAccountBalance(c3, a2.id).balance);
-    }
-
-    public void test_should_calculate_account_total_in_home_currency_with_big_amounts() {
-        TransactionBuilder.withDb(db).account(a1).dateTime(DateTime.date(2012, 1, 10)).amount(45000000000L).create();
-        //no conversion
-        assertEquals(45000000000L+(long) (-100f +100f -50f -450f -50f -150f), c.getAccountBalance(c1, a1.id).balance);
     }
 
 }

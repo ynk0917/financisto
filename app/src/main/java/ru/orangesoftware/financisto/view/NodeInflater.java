@@ -10,6 +10,8 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.view;
 
+import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
+
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
@@ -24,29 +26,16 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.RelativeLayout.LayoutParams;
 import android.widget.TextView;
-
 import ru.orangesoftware.financisto.BuildConfig;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.utils.PicturesUtil;
 
-import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
-
 public class NodeInflater {
 
-    private final LayoutInflater inflater;
-
-    public NodeInflater(LayoutInflater inflater) {
-        this.inflater = inflater;
-    }
-
-    public View addDivider(LinearLayout layout) {
-        View divider = inflater.inflate(R.layout.edit_divider, layout, false);
-        layout.addView(divider);
-        return divider;
-    }
-
     public class Builder {
+
         protected final LinearLayout layout;
+
         protected final View v;
 
         private boolean divider = true;
@@ -59,6 +48,33 @@ public class NodeInflater {
         public Builder(LinearLayout layout, View v) {
             this.layout = layout;
             this.v = v;
+        }
+
+        public View create() {
+            layout.addView(v);
+            if (divider) {
+                View dividerView = addDivider(layout);
+                v.setTag(dividerView);
+            }
+            return v;
+        }
+
+        public Builder withData(String label) {
+            TextView labelView = v.findViewById(R.id.data);
+            labelView.setText(label);
+            return this;
+        }
+
+        public Builder withData(int labelId) {
+            TextView labelView = v.findViewById(R.id.data);
+            labelView.setText(labelId);
+            return this;
+        }
+
+        public Builder withIcon(int iconId) {
+            ImageView iconView = v.findViewById(R.id.icon);
+            iconView.setImageResource(iconId);
+            return this;
         }
 
         public Builder withId(int id, OnClickListener listener) {
@@ -79,36 +95,9 @@ public class NodeInflater {
             return this;
         }
 
-        public Builder withData(int labelId) {
-            TextView labelView = v.findViewById(R.id.data);
-            labelView.setText(labelId);
-            return this;
-        }
-
-        public Builder withData(String label) {
-            TextView labelView = v.findViewById(R.id.data);
-            labelView.setText(label);
-            return this;
-        }
-
-        public Builder withIcon(int iconId) {
-            ImageView iconView = v.findViewById(R.id.icon);
-            iconView.setImageResource(iconId);
-            return this;
-        }
-
         public Builder withNoDivider() {
             divider = false;
             return this;
-        }
-
-        public View create() {
-            layout.addView(v);
-            if (divider) {
-                View dividerView = addDivider(layout);
-                v.setTag(dividerView);
-            }
-            return v;
         }
 
     }
@@ -118,7 +107,8 @@ public class NodeInflater {
         public EditBuilder(LinearLayout layout, View view) {
             super(layout, R.layout.select_entry_edit);
             RelativeLayout relativeLayout = v.findViewById(R.id.layout);
-            RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+            RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(LayoutParams.MATCH_PARENT,
+                    LayoutParams.WRAP_CONTENT);
             layoutParams.addRule(RelativeLayout.ALIGN_LEFT, R.id.label);
             layoutParams.addRule(RelativeLayout.BELOW, R.id.label);
             relativeLayout.addView(view, layoutParams);
@@ -181,7 +171,8 @@ public class NodeInflater {
                 }
                 String fileName = (String) imageView.getTag(R.id.attached_picture);
                 if (fileName != null) {
-                    Uri target = FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID, PicturesUtil.pictureFile(fileName, true));
+                    Uri target = FileProvider.getUriForFile(context, BuildConfig.APPLICATION_ID,
+                            PicturesUtil.pictureFile(fileName, true));
                     Intent intent = new Intent();
                     intent.setAction(Intent.ACTION_VIEW);
                     intent.setDataAndType(target, "image/jpeg");
@@ -193,6 +184,18 @@ public class NodeInflater {
             return this;
         }
 
+    }
+
+    private final LayoutInflater inflater;
+
+    public NodeInflater(LayoutInflater inflater) {
+        this.inflater = inflater;
+    }
+
+    public View addDivider(LinearLayout layout) {
+        View divider = inflater.inflate(R.layout.edit_divider, layout, false);
+        layout.addView(divider);
+        return divider;
     }
 
 }

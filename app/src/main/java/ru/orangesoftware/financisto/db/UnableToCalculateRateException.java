@@ -18,9 +18,11 @@ import ru.orangesoftware.financisto.model.Currency;
  */
 public class UnableToCalculateRateException extends Exception {
 
-    public final Currency fromCurrency;
-    public final Currency toCurrency;
     public final long datetime;
+
+    public final Currency fromCurrency;
+
+    public final Currency toCurrency;
 
     public UnableToCalculateRateException(Currency fromCurrency, Currency toCurrency, long datetime) {
         this.fromCurrency = fromCurrency;

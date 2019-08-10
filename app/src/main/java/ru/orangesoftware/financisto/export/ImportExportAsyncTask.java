@@ -10,6 +10,9 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.export;
 
+import static ru.orangesoftware.financisto.export.Export.uploadBackupFileToDropbox;
+import static ru.orangesoftware.financisto.export.Export.uploadBackupFileToGoogleDrive;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -17,23 +20,21 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
 import android.widget.Toast;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.bus.GreenRobotBus_;
 import ru.orangesoftware.financisto.bus.RefreshCurrentTab;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 
-import static ru.orangesoftware.financisto.export.Export.uploadBackupFileToDropbox;
-import static ru.orangesoftware.financisto.export.Export.uploadBackupFileToGoogleDrive;
-
 public abstract class ImportExportAsyncTask extends AsyncTask<String, String, Object> {
 
     protected final Activity context;
+
     protected final ProgressDialog dialog;
-    private boolean showResultMessage = true;
 
     private ImportExportAsyncTaskListener listener;
+
+    private boolean showResultMessage = true;
 
     public ImportExportAsyncTask(Activity context, ProgressDialog dialog) {
         this.dialog = dialog;
@@ -46,6 +47,11 @@ public abstract class ImportExportAsyncTask extends AsyncTask<String, String, Ob
 
     public void setShowResultMessage(boolean showResultMessage) {
         this.showResultMessage = showResultMessage;
+    }
+
+    protected void doForceUploadToDropbox(Context context, String backupFileName) throws Exception {
+        publishProgress(context.getString(R.string.dropbox_uploading_file));
+        uploadBackupFileToDropbox(context, backupFileName);
     }
 
     @Override
@@ -62,38 +68,13 @@ public abstract class ImportExportAsyncTask extends AsyncTask<String, String, Ob
         }
     }
 
-    protected abstract Object work(Context context, DatabaseAdapter db, String... params) throws Exception;
-
-    protected abstract String getSuccessMessage(Object result);
-
     protected void doUploadToDropbox(Context context, String backupFileName) throws Exception {
         if (MyPreferences.isDropboxUploadBackups(context)) {
             doForceUploadToDropbox(context, backupFileName);
         }
     }
 
-    protected void doForceUploadToDropbox(Context context, String backupFileName) throws Exception {
-        publishProgress(context.getString(R.string.dropbox_uploading_file));
-        uploadBackupFileToDropbox(context, backupFileName);
-    }
-
-    void doUploadToGoogleDrive(Context context, String backupFileName) throws Exception {
-        if (MyPreferences.isGoogleDriveUploadBackups(context)) {
-            doForceUploadToGoogleDrive(context, backupFileName);
-        }
-    }
-
-    private void doForceUploadToGoogleDrive(Context context, String backupFileName) throws Exception {
-        publishProgress(context.getString(R.string.google_drive_uploading_file));
-        uploadBackupFileToGoogleDrive(context, backupFileName);
-    }
-
-
-    @Override
-    protected void onProgressUpdate(String... values) {
-        super.onProgressUpdate(values);
-        dialog.setMessage(values[0]);
-    }
+    protected abstract String getSuccessMessage(Object result);
 
     @Override
     protected void onPostExecute(Object result) {
@@ -102,7 +83,7 @@ public abstract class ImportExportAsyncTask extends AsyncTask<String, String, Ob
         if (result instanceof ImportExportException) {
             ImportExportException exception = (ImportExportException) result;
             StringBuilder sb = new StringBuilder();
-            if (exception.formatArgs != null){
+            if (exception.formatArgs != null) {
                 sb.append(context.getString(exception.errorResId, exception.formatArgs));
             } else {
                 sb.append(context.getString(exception.errorResId));
@@ -119,8 +100,9 @@ public abstract class ImportExportAsyncTask extends AsyncTask<String, String, Ob
             return;
         }
 
-        if (result instanceof Exception)
+        if (result instanceof Exception) {
             return;
+        }
 
         String message = getSuccessMessage(result);
 
@@ -132,6 +114,25 @@ public abstract class ImportExportAsyncTask extends AsyncTask<String, String, Ob
         if (showResultMessage) {
             Toast.makeText(context, context.getString(R.string.success, message), Toast.LENGTH_LONG).show();
         }
+    }
+
+    @Override
+    protected void onProgressUpdate(String... values) {
+        super.onProgressUpdate(values);
+        dialog.setMessage(values[0]);
+    }
+
+    protected abstract Object work(Context context, DatabaseAdapter db, String... params) throws Exception;
+
+    void doUploadToGoogleDrive(Context context, String backupFileName) throws Exception {
+        if (MyPreferences.isGoogleDriveUploadBackups(context)) {
+            doForceUploadToGoogleDrive(context, backupFileName);
+        }
+    }
+
+    private void doForceUploadToGoogleDrive(Context context, String backupFileName) throws Exception {
+        publishProgress(context.getString(R.string.google_drive_uploading_file));
+        uploadBackupFileToGoogleDrive(context, backupFileName);
     }
 
     private void refreshMainActivity() {

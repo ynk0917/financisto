@@ -19,17 +19,18 @@ package ru.orangesoftware.financisto.utils;
 import android.content.Context;
 import android.os.Environment;
 import android.widget.ImageView;
-
 import com.bumptech.glide.Glide;
-
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class PicturesUtil {
 
-    private static final File PICTURES_DIR = new File(Environment.getExternalStorageDirectory(), "financisto/pictures");
-    private static final File LEGACY_PICTURES_DIR = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+    private static final File PICTURES_DIR = new File(Environment.getExternalStorageDirectory(),
+            "financisto/pictures");
+
+    private static final File LEGACY_PICTURES_DIR = Environment
+            .getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
 
     private static final SimpleDateFormat PICTURE_FILE_NAME_FORMAT = new SimpleDateFormat("yyyyMMddHHmmssSS");
 
@@ -46,7 +47,9 @@ public class PicturesUtil {
     }
 
     public static void showImage(Context context, ImageView imageView, String pictureFileName) {
-        if (pictureFileName == null || imageView == null) return;
+        if (pictureFileName == null || imageView == null) {
+            return;
+        }
         Glide.with(context)
                 .load(PicturesUtil.pictureFile(pictureFileName, true))
                 .crossFade()

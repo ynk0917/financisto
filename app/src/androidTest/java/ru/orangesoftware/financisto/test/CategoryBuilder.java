@@ -1,10 +1,12 @@
 package ru.orangesoftware.financisto.test;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.model.Attribute;
 import ru.orangesoftware.financisto.model.Category;
-
-import java.util.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -13,8 +15,19 @@ import java.util.*;
  */
 public class CategoryBuilder {
 
-    private final DatabaseAdapter db;
     private final Category category = new Category();
+
+    private final DatabaseAdapter db;
+
+    public static Map<String, Category> allCategoriesAsMap(DatabaseAdapter db) {
+        HashMap<String, Category> map = new HashMap<String, Category>();
+        List<Category> categories = db.getAllCategoriesList();
+        for (Category category : categories) {
+            category.attributes = db.getAttributesForCategory(category.id);
+            map.put(category.title, category);
+        }
+        return map;
+    }
 
     /**
      * A
@@ -36,40 +49,30 @@ public class CategoryBuilder {
         return allCategoriesAsMap(db);
     }
 
-    private CategoryBuilder withAttributes(Attribute...attributes) {
-        category.attributes = Arrays.asList(attributes);
-        return this;
-    }
-
-    public static Map<String, Category> allCategoriesAsMap(DatabaseAdapter db) {
-        HashMap<String, Category> map = new HashMap<String, Category>();
-        List<Category> categories = db.getAllCategoriesList();
-        for (Category category : categories) {
-            category.attributes = db.getAttributesForCategory(category.id);
-            map.put(category.title, category);
-        }
-        return map;
+    public static Category noCategory(DatabaseAdapter db) {
+        return db.getCategoryWithParent(Category.NO_CATEGORY_ID);
     }
 
     public static Category split(DatabaseAdapter db) {
         return db.getCategoryWithParent(Category.SPLIT_CATEGORY_ID);
     }
 
-    public static Category noCategory(DatabaseAdapter db) {
-        return db.getCategoryWithParent(Category.NO_CATEGORY_ID);
-    }
-
     private CategoryBuilder(DatabaseAdapter db) {
         this.db = db;
     }
 
-    public CategoryBuilder withTitle(String title) {
-        category.title = title;
-        return this;
+    public Category create() {
+        category.id = db.insertOrUpdate(category, category.attributes);
+        return category;
     }
 
     public CategoryBuilder withParent(Category parent) {
         category.parent = parent;
+        return this;
+    }
+
+    public CategoryBuilder withTitle(String title) {
+        category.title = title;
         return this;
     }
 
@@ -78,9 +81,9 @@ public class CategoryBuilder {
         return this;
     }
 
-    public Category create() {
-        category.id = db.insertOrUpdate(category, category.attributes);
-        return category;
+    private CategoryBuilder withAttributes(Attribute... attributes) {
+        category.attributes = Arrays.asList(attributes);
+        return this;
     }
 
 }

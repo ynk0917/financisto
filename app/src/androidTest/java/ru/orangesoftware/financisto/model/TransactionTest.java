@@ -1,18 +1,17 @@
 package ru.orangesoftware.financisto.model;
 
+import static ru.orangesoftware.financisto.test.AttributeBuilder.attributeValue;
+
 import android.content.Intent;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import ru.orangesoftware.financisto.db.AbstractDbTest;
 import ru.orangesoftware.financisto.test.AccountBuilder;
 import ru.orangesoftware.financisto.test.CategoryBuilder;
 import ru.orangesoftware.financisto.test.CurrencyBuilder;
 import ru.orangesoftware.financisto.test.TransactionBuilder;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static ru.orangesoftware.financisto.test.AttributeBuilder.attributeValue;
 
 /**
  * Created by IntelliJ IDEA.
@@ -22,7 +21,9 @@ import static ru.orangesoftware.financisto.test.AttributeBuilder.attributeValue;
 public class TransactionTest extends AbstractDbTest {
 
     Account a1;
+
     Account a2;
+
     Map<String, Category> categories;
 
     @Override
@@ -35,8 +36,23 @@ public class TransactionTest extends AbstractDbTest {
         categories = CategoryBuilder.createDefaultHierarchy(db);
     }
 
+    public void test_should_convert_split_into_regular_transaction() {
+        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(2000)
+                .withSplit(categories.get("A1"), 500)
+                .withSplit(categories.get("A2"), 1500)
+                .create();
+        List<Transaction> splits = db.getSplitsForTransaction(t.id);
+        assertEquals(2, splits.size());
+        t.categoryId = categories.get("A").id;
+        t.splits = null;
+        db.insertOrUpdate(t);
+        splits = db.getSplitsForTransaction(t.id);
+        assertEquals(0, splits.size());
+    }
+
     public void test_should_create_splits() {
-        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(200).payee("P1").category(CategoryBuilder.split(db))
+        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(200).payee("P1")
+                .category(CategoryBuilder.split(db))
                 .withSplit(categories.get("A1"), 60)
                 .withSplit(categories.get("A2"), 40)
                 .withTransferSplit(a2, 100, 50)
@@ -61,6 +77,34 @@ public class TransactionTest extends AbstractDbTest {
         assertEquals(50, split3.toAmount);
     }
 
+    public void test_should_delete_splits() {
+        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(-150).category(CategoryBuilder.split(db))
+                .withSplit(categories.get("A1"), -60)
+                .withSplit(categories.get("A2"), -40)
+                .withTransferSplit(a2, -50, 40)
+                .create();
+        List<Transaction> splits = db.getSplitsForTransaction(t.id);
+        assertEquals(3, splits.size());
+        db.deleteTransaction(t.id);
+        splits = db.getSplitsForTransaction(t.id);
+        assertEquals(0, splits.size());
+    }
+
+    public void test_should_duplicate_splits() {
+        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(-150).category(CategoryBuilder.split(db))
+                .withSplit(categories.get("A1"), -60)
+                .withSplit(categories.get("A2"), -40)
+                .withTransferSplit(a2, -50, 40)
+                .create();
+        List<Transaction> splits = db.getSplitsForTransaction(t.id);
+        assertEquals(3, splits.size());
+        long newId = db.duplicateTransaction(t.id);
+        assertNotSame(t.id, newId);
+        List<Transaction> newSplits = db.getSplitsForTransaction(newId);
+        assertEquals(3, newSplits.size());
+        assertEquals(-150, newSplits.get(0).fromAmount + newSplits.get(1).fromAmount + newSplits.get(2).fromAmount);
+    }
+
     public void test_should_insert_and_update_attributes() {
         //given
         Category aa1 = categories.get("AA1");
@@ -81,7 +125,8 @@ public class TransactionTest extends AbstractDbTest {
         assertAttributes(splits.get(1), attributeValue(attr2, "value21"));
         //when modified
         db.insertOrUpdate(t1, Arrays.asList(attributeValue(attr2, "value3")));
-        splits.get(0).categoryAttributes = asMap(attributeValue(attr1, "value111"), attributeValue(attr2, "value222"));
+        splits.get(0).categoryAttributes = asMap(attributeValue(attr1, "value111"),
+                attributeValue(attr2, "value222"));
         splits.get(1).categoryAttributes = asMap(attributeValue(attr1, "value333"));
         t2.splits = splits;
         db.insertOrUpdate(t2);
@@ -90,106 +135,6 @@ public class TransactionTest extends AbstractDbTest {
         splits = db.getSplitsForTransaction(t2.id);
         assertAttributes(splits.get(0), attributeValue(attr1, "value111"), attributeValue(attr2, "value222"));
         assertAttributes(splits.get(1), attributeValue(attr1, "value333"));
-    }
-
-    private Map<Long, String> asMap(TransactionAttribute...values) {
-        Map<Long, String> map = new HashMap<Long, String>();
-        for (TransactionAttribute value : values) {
-            map.put(value.attributeId, value.value);
-        }
-        return map;
-    }
-
-    private void assertAttributes(Transaction t, TransactionAttribute...values) {
-        Map<Long, String> attributes = db.getAllAttributesForTransaction(t.id);
-        assertEquals(values.length, attributes.size());
-        for (TransactionAttribute value : values) {
-            assertEquals(value.value, attributes.get(value.attributeId));
-        }
-    }
-
-    public void test_should_duplicate_splits() {
-        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(-150).category(CategoryBuilder.split(db))
-                .withSplit(categories.get("A1"), -60)
-                .withSplit(categories.get("A2"), -40)
-                .withTransferSplit(a2, -50, 40)
-                .create();
-        List<Transaction> splits = db.getSplitsForTransaction(t.id);
-        assertEquals(3, splits.size());
-        long newId = db.duplicateTransaction(t.id);
-        assertNotSame(t.id, newId);
-        List<Transaction> newSplits = db.getSplitsForTransaction(newId);
-        assertEquals(3, newSplits.size());
-        assertEquals(-150, newSplits.get(0).fromAmount+newSplits.get(1).fromAmount+newSplits.get(2).fromAmount);
-    }
-
-    public void test_should_convert_split_into_regular_transaction() {
-        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(2000)
-                .withSplit(categories.get("A1"), 500)
-                .withSplit(categories.get("A2"), 1500)
-                .create();
-        List<Transaction> splits = db.getSplitsForTransaction(t.id);
-        assertEquals(2, splits.size());
-        t.categoryId = categories.get("A").id;
-        t.splits = null;
-        db.insertOrUpdate(t);
-        splits = db.getSplitsForTransaction(t.id);
-        assertEquals(0, splits.size());
-    }
-
-    public void test_should_update_splits() {
-        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(-150).category(CategoryBuilder.split(db))
-                .withSplit(categories.get("A1"), -60)
-                .withSplit(categories.get("A2"), -40)
-                .withTransferSplit(a2, -50, 40)
-                .create();
-        List<Transaction> splits = db.getSplitsForTransaction(t.id);
-        assertEquals(3, splits.size());
-        t.fromAmount = -250;
-        splits.get(0).fromAmount = -70;
-        splits.get(1).fromAmount = -50;
-        splits.get(2).fromAmount = -130;
-        splits.get(2).toAmount = 70;
-        t.splits = splits;
-        db.insertOrUpdate(t);
-        splits = db.getSplitsForTransaction(t.id);
-        assertEquals(3, splits.size());
-    }
-
-    public void test_should_delete_splits() {
-        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(-150).category(CategoryBuilder.split(db))
-                .withSplit(categories.get("A1"), -60)
-                .withSplit(categories.get("A2"), -40)
-                .withTransferSplit(a2, -50, 40)
-                .create();
-        List<Transaction> splits = db.getSplitsForTransaction(t.id);
-        assertEquals(3, splits.size());
-        db.deleteTransaction(t.id);
-        splits = db.getSplitsForTransaction(t.id);
-        assertEquals(0, splits.size());
-    }
-
-    public void test_should_store_transaction_in_the_database() {
-        Transaction t = new Transaction();
-        t.fromAccountId = 1;
-        t.fromAmount = 1000;
-        t.categoryId = 5;
-        t.accuracy = 6.0f;
-        t.latitude = -11.0;
-        t.isCCardPayment = 1;
-        t.note = "My note";
-        t.status = TransactionStatus.RS;
-        long id = db.saveOrUpdate(t);
-        assertTrue(id > 0);
-        Transaction restored = db.load(Transaction.class, id);
-        assertEquals(t.fromAccountId, restored.fromAccountId);
-        assertEquals(t.fromAmount, restored.fromAmount);
-        assertEquals(t.categoryId, restored.categoryId);
-        assertEquals(t.note, restored.note);
-        assertEquals(t.status, restored.status);
-        assertEquals(t.accuracy, restored.accuracy);
-        assertEquals(t.latitude, restored.latitude);
-        assertEquals(t.isCCardPayment, restored.isCCardPayment);
     }
 
     public void test_should_restore_split_from_intent() {
@@ -215,6 +160,29 @@ public class TransactionTest extends AbstractDbTest {
         assertEquals(split.note, restored.note);
     }
 
+    public void test_should_store_transaction_in_the_database() {
+        Transaction t = new Transaction();
+        t.fromAccountId = 1;
+        t.fromAmount = 1000;
+        t.categoryId = 5;
+        t.accuracy = 6.0f;
+        t.latitude = -11.0;
+        t.isCCardPayment = 1;
+        t.note = "My note";
+        t.status = TransactionStatus.RS;
+        long id = db.saveOrUpdate(t);
+        assertTrue(id > 0);
+        Transaction restored = db.load(Transaction.class, id);
+        assertEquals(t.fromAccountId, restored.fromAccountId);
+        assertEquals(t.fromAmount, restored.fromAmount);
+        assertEquals(t.categoryId, restored.categoryId);
+        assertEquals(t.note, restored.note);
+        assertEquals(t.status, restored.status);
+        assertEquals(t.accuracy, restored.accuracy);
+        assertEquals(t.latitude, restored.latitude);
+        assertEquals(t.isCCardPayment, restored.isCCardPayment);
+    }
+
     public void test_should_update_original_amount_for_splits() {
         Transaction t = TransactionBuilder.withDb(db).account(a1).category(CategoryBuilder.split(db))
                 .amount(120).originalAmount(a2.currency, 100)
@@ -225,6 +193,41 @@ public class TransactionTest extends AbstractDbTest {
         assertEquals(2, splits.size());
         assertSplit(splits.get(0), t.originalCurrencyId, 60, 72);
         assertSplit(splits.get(1), t.originalCurrencyId, 40, 48);
+    }
+
+    public void test_should_update_splits() {
+        Transaction t = TransactionBuilder.withDb(db).account(a1).amount(-150).category(CategoryBuilder.split(db))
+                .withSplit(categories.get("A1"), -60)
+                .withSplit(categories.get("A2"), -40)
+                .withTransferSplit(a2, -50, 40)
+                .create();
+        List<Transaction> splits = db.getSplitsForTransaction(t.id);
+        assertEquals(3, splits.size());
+        t.fromAmount = -250;
+        splits.get(0).fromAmount = -70;
+        splits.get(1).fromAmount = -50;
+        splits.get(2).fromAmount = -130;
+        splits.get(2).toAmount = 70;
+        t.splits = splits;
+        db.insertOrUpdate(t);
+        splits = db.getSplitsForTransaction(t.id);
+        assertEquals(3, splits.size());
+    }
+
+    private Map<Long, String> asMap(TransactionAttribute... values) {
+        Map<Long, String> map = new HashMap<Long, String>();
+        for (TransactionAttribute value : values) {
+            map.put(value.attributeId, value.value);
+        }
+        return map;
+    }
+
+    private void assertAttributes(Transaction t, TransactionAttribute... values) {
+        Map<Long, String> attributes = db.getAllAttributesForTransaction(t.id);
+        assertEquals(values.length, attributes.size());
+        for (TransactionAttribute value : values) {
+            assertEquals(value.value, attributes.get(value.attributeId));
+        }
     }
 
     private void assertSplit(Transaction split, long originalCurrencyId, long originalAmount, long accountAmount) {

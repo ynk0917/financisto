@@ -9,11 +9,10 @@
 package ru.orangesoftware.financisto.rates;
 
 import android.util.Log;
-import ru.orangesoftware.financisto.http.HttpClientWrapper;
-import ru.orangesoftware.financisto.model.Currency;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import ru.orangesoftware.financisto.http.HttpClientWrapper;
+import ru.orangesoftware.financisto.model.Currency;
 
 /**
  * Created with IntelliJ IDEA.
@@ -25,9 +24,11 @@ public class WebserviceXConversionRateDownloader extends AbstractMultipleRatesDo
 
     private static final String TAG = WebserviceXConversionRateDownloader.class.getSimpleName();
 
-    private final Pattern pattern = Pattern.compile("<double.*?>(.+?)</double>");
     private final HttpClientWrapper client;
+
     private final long dateTime;
+
+    private final Pattern pattern = Pattern.compile("<double.*?>(.+?)</double>");
 
     public WebserviceXConversionRateDownloader(HttpClientWrapper client, long dateTime) {
         this.client = client;
@@ -47,9 +48,19 @@ public class WebserviceXConversionRateDownloader extends AbstractMultipleRatesDo
             }
             return rate;
         } catch (Exception e) {
-            rate.error = "Unable to get exchange rates: "+e.getMessage();
+            rate.error = "Unable to get exchange rates: " + e.getMessage();
         }
         return rate;
+    }
+
+    @Override
+    public ExchangeRate getRate(Currency fromCurrency, Currency toCurrency, long atTime) {
+        throw new UnsupportedOperationException("Not supported by WebserviceX.NET");
+    }
+
+    private String buildUrl(Currency fromCurrency, Currency toCurrency) {
+        return "http://www.webservicex.net/CurrencyConvertor.asmx/ConversionRate?FromCurrency=" + fromCurrency.name
+                + "&ToCurrency=" + toCurrency.name;
     }
 
     private ExchangeRate createRate(Currency fromCurrency, Currency toCurrency) {
@@ -68,26 +79,17 @@ public class WebserviceXConversionRateDownloader extends AbstractMultipleRatesDo
         return s;
     }
 
-    private double parseRate(String s) {
-        return Double.parseDouble(s);
-    }
-
     private String parseError(String s) {
         String[] x = s.split("\r\n");
         String error = "Service is not available, please try again later";
         if (x.length > 0) {
-            error = "Something wrong with the exchange rates provider. Response from the service - "+x[0];
+            error = "Something wrong with the exchange rates provider. Response from the service - " + x[0];
         }
         return error;
     }
 
-    private String buildUrl(Currency fromCurrency, Currency toCurrency) {
-        return "http://www.webservicex.net/CurrencyConvertor.asmx/ConversionRate?FromCurrency="+fromCurrency.name+"&ToCurrency="+toCurrency.name;
-    }
-
-    @Override
-    public ExchangeRate getRate(Currency fromCurrency, Currency toCurrency, long atTime) {
-        throw new UnsupportedOperationException("Not supported by WebserviceX.NET");
+    private double parseRate(String s) {
+        return Double.parseDouble(s);
     }
 
 }

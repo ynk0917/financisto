@@ -8,12 +8,11 @@
 
 package ru.orangesoftware.financisto.service;
 
-import android.test.AndroidTestCase;
-import ru.orangesoftware.financisto.test.DateTime;
-
-import java.util.Date;
-
 import static ru.orangesoftware.financisto.test.DateTime.date;
+
+import android.test.AndroidTestCase;
+import java.util.Date;
+import ru.orangesoftware.financisto.test.DateTime;
 
 /**
  * Created by IntelliJ IDEA.

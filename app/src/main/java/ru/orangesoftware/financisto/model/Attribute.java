@@ -12,11 +12,9 @@ package ru.orangesoftware.financisto.model;
 
 import android.content.ContentValues;
 import android.database.Cursor;
-
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
-
 import ru.orangesoftware.financisto.db.DatabaseHelper.AttributeColumns;
 
 @Entity
@@ -24,6 +22,23 @@ import ru.orangesoftware.financisto.db.DatabaseHelper.AttributeColumns;
 public class Attribute extends MyEntity {
 
     public static final int DELETE_AFTER_EXPIRED_ID = -1;
+
+    public static final int TYPE_TEXT = 1;
+
+    public static final int TYPE_NUMBER = 2;
+
+    public static final int TYPE_LIST = 3;
+
+    public static final int TYPE_CHECKBOX = 4;
+
+    @Column(name = "default_value")
+    public String defaultValue;
+
+    @Column(name = "list_values")
+    public String listValues;
+
+    @Column(name = "type")
+    public int type;
 
     public static Attribute deleteAfterExpired() {
         Attribute attribute = new Attribute();
@@ -34,19 +49,15 @@ public class Attribute extends MyEntity {
         return attribute;
     }
 
-    public static final int TYPE_TEXT = 1;
-    public static final int TYPE_NUMBER = 2;
-    public static final int TYPE_LIST = 3;
-    public static final int TYPE_CHECKBOX = 4;
-
-    @Column(name = "type")
-    public int type;
-
-    @Column(name = "list_values")
-    public String listValues;
-
-    @Column(name = "default_value")
-    public String defaultValue;
+    public static Attribute fromCursor(Cursor c) {
+        Attribute a = new Attribute();
+        a.id = c.getLong(AttributeColumns.Indicies.ID);
+        a.title = c.getString(AttributeColumns.Indicies.TITLE);
+        a.type = c.getInt(AttributeColumns.Indicies.TYPE);
+        a.listValues = c.getString(AttributeColumns.Indicies.LIST_VALUES);
+        a.defaultValue = c.getString(AttributeColumns.Indicies.DEFAULT_VALUE);
+        return a;
+    }
 
     public Attribute() {
     }
@@ -62,16 +73,6 @@ public class Attribute extends MyEntity {
         } else {
             return defaultValue;
         }
-    }
-
-    public static Attribute fromCursor(Cursor c) {
-        Attribute a = new Attribute();
-        a.id = c.getLong(AttributeColumns.Indicies.ID);
-        a.title = c.getString(AttributeColumns.Indicies.TITLE);
-        a.type = c.getInt(AttributeColumns.Indicies.TYPE);
-        a.listValues = c.getString(AttributeColumns.Indicies.LIST_VALUES);
-        a.defaultValue = c.getString(AttributeColumns.Indicies.DEFAULT_VALUE);
-        return a;
     }
 
     public ContentValues toValues() {

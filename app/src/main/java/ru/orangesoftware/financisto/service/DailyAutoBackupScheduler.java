@@ -13,10 +13,8 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
-
 import java.util.Calendar;
 import java.util.Date;
-
 import ru.orangesoftware.financisto.activity.ScheduledAlarmReceiver;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 
@@ -28,36 +26,24 @@ import ru.orangesoftware.financisto.utils.MyPreferences;
 public class DailyAutoBackupScheduler {
 
     private final int hh;
+
     private final int mm;
+
     private final long now;
 
     public static void scheduleNextAutoBackup(Context context) {
         if (MyPreferences.isAutoBackupEnabled(context)) {
             int hhmm = MyPreferences.getAutoBackupTime(context);
-            int hh = hhmm/100;
-            int mm = hhmm - 100*hh;
+            int hh = hhmm / 100;
+            int mm = hhmm - 100 * hh;
             new DailyAutoBackupScheduler(hh, mm, System.currentTimeMillis()).scheduleBackup(context);
         }
     }
-    
+
     DailyAutoBackupScheduler(int hh, int mm, long now) {
         this.hh = hh;
         this.mm = mm;
         this.now = now;
-    }
-
-    private void scheduleBackup(Context context) {
-        AlarmManager service = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
-        PendingIntent pendingIntent = createPendingIntent(context);
-        Date scheduledTime = getScheduledTime();
-        service.set(AlarmManager.RTC_WAKEUP, scheduledTime.getTime(), pendingIntent);
-        Log.i("Financisto", "Next auto-backup scheduled at "+scheduledTime);
-    }
-
-    private PendingIntent createPendingIntent(Context context) {
-        Intent intent = new Intent("ru.orangesoftware.financisto.SCHEDULED_BACKUP");
-        intent.setClass(context, ScheduledAlarmReceiver.class);
-        return PendingIntent.getBroadcast(context, -100, intent, PendingIntent.FLAG_CANCEL_CURRENT);
     }
 
     Date getScheduledTime() {
@@ -71,6 +57,20 @@ public class DailyAutoBackupScheduler {
             c.add(Calendar.DAY_OF_MONTH, 1);
         }
         return c.getTime();
+    }
+
+    private PendingIntent createPendingIntent(Context context) {
+        Intent intent = new Intent("ru.orangesoftware.financisto.SCHEDULED_BACKUP");
+        intent.setClass(context, ScheduledAlarmReceiver.class);
+        return PendingIntent.getBroadcast(context, -100, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+    }
+
+    private void scheduleBackup(Context context) {
+        AlarmManager service = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        PendingIntent pendingIntent = createPendingIntent(context);
+        Date scheduledTime = getScheduledTime();
+        service.set(AlarmManager.RTC_WAKEUP, scheduledTime.getTime(), pendingIntent);
+        Log.i("Financisto", "Next auto-backup scheduled at " + scheduledTime);
     }
 
 }

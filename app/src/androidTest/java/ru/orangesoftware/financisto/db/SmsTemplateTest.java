@@ -15,7 +15,8 @@ public class SmsTemplateTest extends AbstractDbTest {
         super.setUp();
 
         String template = "*{{a}}. Summa {{P}} RUB. NOVYY PROEKT, MOSCOW. {{D}}. Dostupno {{b}}";
-        template777 = SmsTemplateBuilder.withDb(db).title("777").accountId(7).categoryId(8).template(template).create();
+        template777 = SmsTemplateBuilder.withDb(db).title("777").accountId(7).categoryId(8).template(template)
+                .create();
     }
 
     public void testDuplication() throws Exception {

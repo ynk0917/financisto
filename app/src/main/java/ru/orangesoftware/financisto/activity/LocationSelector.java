@@ -10,9 +10,7 @@ package ru.orangesoftware.financisto.activity;
 
 import android.app.Activity;
 import android.widget.ListAdapter;
-
 import java.util.List;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.db.MyEntityManager;
 import ru.orangesoftware.financisto.model.MyLocation;
@@ -32,8 +30,8 @@ public class LocationSelector extends MyEntitySelector<MyLocation> {
     }
 
     @Override
-    protected Class getEditActivityClass() {
-        return LocationActivity.class;
+    protected ListAdapter createAdapter(Activity activity, List<MyLocation> entities) {
+        return TransactionUtils.createLocarionAdapter(activity, entities);
     }
 
     @Override
@@ -42,8 +40,8 @@ public class LocationSelector extends MyEntitySelector<MyLocation> {
     }
 
     @Override
-    protected ListAdapter createAdapter(Activity activity, List<MyLocation> entities) {
-        return TransactionUtils.createLocarionAdapter(activity, entities);
+    protected Class getEditActivityClass() {
+        return LocationActivity.class;
     }
 
 }

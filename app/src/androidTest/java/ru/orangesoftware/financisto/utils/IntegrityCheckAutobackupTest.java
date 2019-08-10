@@ -11,7 +11,6 @@ package ru.orangesoftware.financisto.utils;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.test.AndroidTestCase;
-
 import java.util.concurrent.TimeUnit;
 
 public class IntegrityCheckAutobackupTest extends AndroidTestCase {
@@ -75,14 +74,6 @@ public class IntegrityCheckAutobackupTest extends AndroidTestCase {
         assertEquals(IntegrityCheck.Level.OK, integrity.check().level);
     }
 
-    private void givenTheLastAutobackupHasSucceeded() {
-        MyPreferences.notifyAutobackupSucceeded(getContext());
-    }
-
-    private void givenTheLastAutobackupHasFailed() {
-        MyPreferences.notifyAutobackupFailed(getContext(), new Exception("Error!"));
-    }
-
     private void givenAutobackupEnabledIs(boolean isEnabled) {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
         sharedPreferences.edit().putBoolean("auto_backup_enabled", isEnabled).commit();
@@ -104,6 +95,14 @@ public class IntegrityCheckAutobackupTest extends AndroidTestCase {
                 .remove("last_autobackup_check")
                 .remove("auto_backup_failed_notify")
                 .commit();
+    }
+
+    private void givenTheLastAutobackupHasFailed() {
+        MyPreferences.notifyAutobackupFailed(getContext(), new Exception("Error!"));
+    }
+
+    private void givenTheLastAutobackupHasSucceeded() {
+        MyPreferences.notifyAutobackupSucceeded(getContext());
     }
 
     private void sleepMillis(int millis) {

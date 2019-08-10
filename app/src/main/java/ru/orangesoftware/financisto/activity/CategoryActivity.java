@@ -11,6 +11,11 @@
 package ru.orangesoftware.financisto.activity;
 
 import static android.Manifest.permission.RECEIVE_SMS;
+import static ru.orangesoftware.financisto.activity.CategorySelector.SelectorType.PARENT;
+import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
+import static ru.orangesoftware.financisto.utils.Utils.checkEditText;
+import static ru.orangesoftware.financisto.utils.Utils.text;
+
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.database.Cursor;
@@ -30,42 +35,46 @@ import android.widget.ToggleButton;
 import java.util.ArrayList;
 import java.util.List;
 import ru.orangesoftware.financisto.R;
-import static ru.orangesoftware.financisto.activity.CategorySelector.SelectorType.PARENT;
-import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
 import ru.orangesoftware.financisto.db.DatabaseHelper.AttributeColumns;
 import ru.orangesoftware.financisto.db.DatabaseHelper.CategoryColumns;
 import ru.orangesoftware.financisto.db.DatabaseHelper.SmsTemplateColumns;
 import ru.orangesoftware.financisto.model.Attribute;
 import ru.orangesoftware.financisto.model.Category;
 import ru.orangesoftware.financisto.model.SmsTemplate;
-import static ru.orangesoftware.financisto.utils.Utils.checkEditText;
-import static ru.orangesoftware.financisto.utils.Utils.text;
 
 public class CategoryActivity extends AbstractActivity implements CategorySelector.CategorySelectorListener {
 
     public static final String CATEGORY_ID_EXTRA = "categoryId";
+
     public static final int NEW_ATTRIBUTE_REQUEST = 1;
+
     public static final int EDIT_ATTRIBUTE_REQUEST = 2;
+
     public static final int NEW_SMS_TEMPLATE_REQUEST = 3;
+
     public static final int EDIT_SMS_TEMPLATE_REQUEST = 4;
 
-    private String[] types;
-
-    private Cursor attributeCursor;
     private ListAdapter attributeAdapter;
 
-    private ToggleButton incomeExpenseButton;
+    private Cursor attributeCursor;
 
-    private EditText categoryTitle;
-
-    private ScrollView scrollView;
     private LinearLayout attributesLayout;
-    private LinearLayout smsTemplatesLayout;
-    private LinearLayout parentAttributesLayout;
 
     private Category category = new Category(-1);
 
+    private EditText categoryTitle;
+
+    private ToggleButton incomeExpenseButton;
+
+    private LinearLayout parentAttributesLayout;
+
     private CategorySelector parentCatSelector;
+
+    private ScrollView scrollView;
+
+    private LinearLayout smsTemplatesLayout;
+
+    private String[] types;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,13 +113,15 @@ public class CategoryActivity extends AbstractActivity implements CategorySelect
         x.addEditNode(layout, R.string.title, titleLayout);
 
         smsTemplatesLayout = x.addTitleNodeNoDivider(layout, R.string.sms_templates).findViewById(R.id.layout);
-        x.addInfoNodePlus(smsTemplatesLayout, R.id.new_sms_template, R.id.new_sms_template, R.string.add_sms_template);
+        x.addInfoNodePlus(smsTemplatesLayout, R.id.new_sms_template, R.id.new_sms_template,
+                R.string.add_sms_template);
         addSmsTemplates();
 
         attributesLayout = x.addTitleNodeNoDivider(layout, R.string.attributes).findViewById(R.id.layout);
         x.addInfoNodePlus(attributesLayout, R.id.new_attribute, R.id.add_attribute, R.string.add_attribute);
         addAttributes();
-        parentAttributesLayout = x.addTitleNodeNoDivider(layout, R.string.parent_attributes).findViewById(R.id.layout);
+        parentAttributesLayout = x.addTitleNodeNoDivider(layout, R.string.parent_attributes)
+                .findViewById(R.id.layout);
         addParentAttributes();
 
         Button bOk = findViewById(R.id.bOK);
@@ -144,117 +155,72 @@ public class CategoryActivity extends AbstractActivity implements CategorySelect
         editCategory();
     }
 
-    private CategorySelector initParentCategorySelector() {
-        final CategorySelector res = new CategorySelector(this, db, x, category.id);
-        LinearLayout layout = findViewById(R.id.layout);
-        res.createNode(layout, PARENT);
-        res.setListener(this);
-        res.fetchCategories(false);
-        res.doNotShowSplitCategory();
-        return res;
-    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            switch (requestCode) {
+                case NEW_ATTRIBUTE_REQUEST: {
+                    long attributeId = data.getLongExtra(AttributeColumns.ID, -1);
+                    if (attributeId != -1) {
+                        Attribute a = db.getAttribute(attributeId);
+                        addAttribute(a);
+                    }
+                }
+                break;
+                case EDIT_ATTRIBUTE_REQUEST: {
+                    long attributeId = data.getLongExtra(AttributeColumns.ID, -1);
+                    if (attributeId != -1) {
+                        Attribute a = db.getAttribute(attributeId);
+                        attributeCursor.requery();
+                        updateAttribute(attributesLayout, a);
+                        updateAttribute(parentAttributesLayout, a);
+                    }
+                }
+                break;
 
-    private void setCategoryType(Category category) {
-        if (category.getParentId() > 0) {
-            category.copyTypeFromParent();
-        } else {
-            if (incomeExpenseButton.isChecked()) {
-                category.makeThisCategoryIncome();
-            } else {
-                category.makeThisCategoryExpense();
+                case NEW_SMS_TEMPLATE_REQUEST: {
+                    long smsTemplateId = data.getLongExtra(SmsTemplateColumns._id.name(), -1);
+                    if (smsTemplateId != -1) {
+                        SmsTemplate t = db.load(SmsTemplate.class, smsTemplateId);
+                        addSmsTemplate(t);
+                    }
+                }
+                break;
+                case EDIT_SMS_TEMPLATE_REQUEST: {
+                    long smsTemplateId = data.getLongExtra(SmsTemplateColumns._id.name(), -1);
+                    if (smsTemplateId != -1) {
+                        SmsTemplate t = db.load(SmsTemplate.class, smsTemplateId);
+                        updateSmsTemplate(smsTemplatesLayout, t);
+                    }
+                }
+                break;
+                case R.id.category_pick: {
+                    parentCatSelector.onActivityResult(requestCode, resultCode, data);
+                }
+                break;
             }
         }
     }
 
-    private void editCategory() {
-        categoryTitle.setText(category.title);
-        parentCatSelector.selectCategory(category.getParentId(), false);
-    }
-
-    private void updateIncomeExpenseType() {
-        if (category.getParentId() > 0) {
-            if (category.parent.isIncome()) {
-                incomeExpenseButton.setChecked(true);
-            } else {
-                incomeExpenseButton.setChecked(false);
-            }
-            incomeExpenseButton.setEnabled(false);
-        } else {
-            incomeExpenseButton.setChecked(category.isIncome());
-            incomeExpenseButton.setEnabled(true);
+    @Override
+    public void onCategorySelected(Category parent, boolean selectLast) {
+        if (parent.id != category.id) {
+            selectParentCategory(parent);
         }
     }
 
-    private void addSmsTemplates() {
-        long categoryId = category.id;
-        List<SmsTemplate> templates = db.getSmsTemplatesForCategory(categoryId);
-        for (SmsTemplate t : templates) {
-            addSmsTemplate(t);
+    @Override
+    public void onSelectedId(int id, long selectedId) {
+        switch (id) {
+            case R.id.category:
+                parentCatSelector.selectCategory(selectedId);
+                break;
+            case R.id.new_attribute:
+                Attribute a = db.getAttribute(selectedId);
+                addAttribute(a);
+                break;
         }
-    }
-
-    /**
-     * todo.mb: consider refactoring to common logic with attributes and so on.
-     */
-    private void addSmsTemplate(SmsTemplate t) {
-        View v = x.inflater.new Builder(smsTemplatesLayout, R.layout.select_entry_simple_minus).withId(R.id.edit_sms_template, this).create();
-        setSmsTemplateData(v, t);
-        ImageView minusImageView = v.findViewById(R.id.plus_minus);
-        minusImageView.setId(R.id.remove_sms_template);
-        minusImageView.setOnClickListener(this);
-        minusImageView.setTag(t.id);
-        v.setTag(t);
-        scrollView.fullScroll(ScrollView.FOCUS_DOWN);
-    }
-
-    private void setSmsTemplateData(View v, SmsTemplate t) {
-        TextView labelView = v.findViewById(R.id.label);
-        labelView.setText(t.title);
-        TextView dataView = v.findViewById(R.id.data);
-        dataView.setText(t.template);
-    }
-
-    private void addAttributes() {
-        long categoryId = category.id;
-        if (categoryId == -1) {
-            categoryId = 0;
-        }
-        ArrayList<Attribute> attributes = db.getAttributesForCategory(categoryId);
-        for (Attribute a : attributes) {
-            addAttribute(a);
-        }
-    }
-
-    private void addParentAttributes() {
-        long categoryId = category.getParentId();
-        ArrayList<Attribute> attributes = db.getAllAttributesForCategory(categoryId);
-        if (attributes.size() > 0) {
-            for (Attribute a : attributes) {
-                View v = x.inflater.new Builder(parentAttributesLayout, R.layout.select_entry_simple).create();
-                v.setTag(a);
-                setAttributeData(v, a);
-            }
-        } else {
-            x.addInfoNodeSingle(parentAttributesLayout, -1, R.string.no_attributes);
-        }
-    }
-
-    private void addAttribute(Attribute a) {
-        View v = x.inflater.new Builder(attributesLayout, R.layout.select_entry_simple_minus).withId(R.id.edit_attribute, this).create();
-        setAttributeData(v, a);
-        ImageView plusImageView = v.findViewById(R.id.plus_minus);
-        plusImageView.setId(R.id.remove_attribute);
-        plusImageView.setOnClickListener(this);
-        plusImageView.setTag(v.getTag());
-        v.setTag(a);
-        scrollView.fullScroll(ScrollView.FOCUS_DOWN);
-    }
-
-    private void setAttributeData(View v, Attribute a) {
-        TextView labelView = v.findViewById(R.id.label);
-        labelView.setText(a.title);
-        TextView dataView = v.findViewById(R.id.data);
-        dataView.setText(types[a.type - 1]);
     }
 
     @Override
@@ -334,17 +300,79 @@ public class CategoryActivity extends AbstractActivity implements CategorySelect
         }
     }
 
-    @Override
-    public void onSelectedId(int id, long selectedId) {
-        switch (id) {
-            case R.id.category:
-                parentCatSelector.selectCategory(selectedId);
-                break;
-            case R.id.new_attribute:
-                Attribute a = db.getAttribute(selectedId);
-                addAttribute(a);
-                break;
+    private void addAttribute(Attribute a) {
+        View v = x.inflater.new Builder(attributesLayout, R.layout.select_entry_simple_minus)
+                .withId(R.id.edit_attribute, this).create();
+        setAttributeData(v, a);
+        ImageView plusImageView = v.findViewById(R.id.plus_minus);
+        plusImageView.setId(R.id.remove_attribute);
+        plusImageView.setOnClickListener(this);
+        plusImageView.setTag(v.getTag());
+        v.setTag(a);
+        scrollView.fullScroll(ScrollView.FOCUS_DOWN);
+    }
+
+    private void addAttributes() {
+        long categoryId = category.id;
+        if (categoryId == -1) {
+            categoryId = 0;
         }
+        ArrayList<Attribute> attributes = db.getAttributesForCategory(categoryId);
+        for (Attribute a : attributes) {
+            addAttribute(a);
+        }
+    }
+
+    private void addParentAttributes() {
+        long categoryId = category.getParentId();
+        ArrayList<Attribute> attributes = db.getAllAttributesForCategory(categoryId);
+        if (attributes.size() > 0) {
+            for (Attribute a : attributes) {
+                View v = x.inflater.new Builder(parentAttributesLayout, R.layout.select_entry_simple).create();
+                v.setTag(a);
+                setAttributeData(v, a);
+            }
+        } else {
+            x.addInfoNodeSingle(parentAttributesLayout, -1, R.string.no_attributes);
+        }
+    }
+
+    /**
+     * todo.mb: consider refactoring to common logic with attributes and so on.
+     */
+    private void addSmsTemplate(SmsTemplate t) {
+        View v = x.inflater.new Builder(smsTemplatesLayout, R.layout.select_entry_simple_minus)
+                .withId(R.id.edit_sms_template, this).create();
+        setSmsTemplateData(v, t);
+        ImageView minusImageView = v.findViewById(R.id.plus_minus);
+        minusImageView.setId(R.id.remove_sms_template);
+        minusImageView.setOnClickListener(this);
+        minusImageView.setTag(t.id);
+        v.setTag(t);
+        scrollView.fullScroll(ScrollView.FOCUS_DOWN);
+    }
+
+    private void addSmsTemplates() {
+        long categoryId = category.id;
+        List<SmsTemplate> templates = db.getSmsTemplatesForCategory(categoryId);
+        for (SmsTemplate t : templates) {
+            addSmsTemplate(t);
+        }
+    }
+
+    private void editCategory() {
+        categoryTitle.setText(category.title);
+        parentCatSelector.selectCategory(category.getParentId(), false);
+    }
+
+    private CategorySelector initParentCategorySelector() {
+        final CategorySelector res = new CategorySelector(this, db, x, category.id);
+        LinearLayout layout = findViewById(R.id.layout);
+        res.createNode(layout, PARENT);
+        res.setListener(this);
+        res.fetchCategories(false);
+        res.doNotShowSplitCategory();
+        return res;
     }
 
     private void selectParentCategory(Category c) {
@@ -354,52 +382,30 @@ public class CategoryActivity extends AbstractActivity implements CategorySelect
         updateIncomeExpenseType();
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            switch (requestCode) {
-                case NEW_ATTRIBUTE_REQUEST: {
-                    long attributeId = data.getLongExtra(AttributeColumns.ID, -1);
-                    if (attributeId != -1) {
-                        Attribute a = db.getAttribute(attributeId);
-                        addAttribute(a);
-                    }
-                }
-                break;
-                case EDIT_ATTRIBUTE_REQUEST: {
-                    long attributeId = data.getLongExtra(AttributeColumns.ID, -1);
-                    if (attributeId != -1) {
-                        Attribute a = db.getAttribute(attributeId);
-                        attributeCursor.requery();
-                        updateAttribute(attributesLayout, a);
-                        updateAttribute(parentAttributesLayout, a);
-                    }
-                }
-                break;
+    private void setAttributeData(View v, Attribute a) {
+        TextView labelView = v.findViewById(R.id.label);
+        labelView.setText(a.title);
+        TextView dataView = v.findViewById(R.id.data);
+        dataView.setText(types[a.type - 1]);
+    }
 
-                case NEW_SMS_TEMPLATE_REQUEST: {
-                    long smsTemplateId = data.getLongExtra(SmsTemplateColumns._id.name(), -1);
-                    if (smsTemplateId != -1) {
-                        SmsTemplate t = db.load(SmsTemplate.class, smsTemplateId);
-                        addSmsTemplate(t);
-                    }
-                }
-                break;
-                case EDIT_SMS_TEMPLATE_REQUEST: {
-                    long smsTemplateId = data.getLongExtra(SmsTemplateColumns._id.name(), -1);
-                    if (smsTemplateId != -1) {
-                        SmsTemplate t = db.load(SmsTemplate.class, smsTemplateId);
-                        updateSmsTemplate(smsTemplatesLayout, t);
-                    }
-                }
-                break;
-                case R.id.category_pick: {
-                    parentCatSelector.onActivityResult(requestCode, resultCode, data);
-                }
-                break;
+    private void setCategoryType(Category category) {
+        if (category.getParentId() > 0) {
+            category.copyTypeFromParent();
+        } else {
+            if (incomeExpenseButton.isChecked()) {
+                category.makeThisCategoryIncome();
+            } else {
+                category.makeThisCategoryExpense();
             }
         }
+    }
+
+    private void setSmsTemplateData(View v, SmsTemplate t) {
+        TextView labelView = v.findViewById(R.id.label);
+        labelView.setText(t.title);
+        TextView dataView = v.findViewById(R.id.data);
+        dataView.setText(t.template);
     }
 
     @Deprecated
@@ -414,6 +420,20 @@ public class CategoryActivity extends AbstractActivity implements CategorySelect
                     setAttributeData(v, a);
                 }
             }
+        }
+    }
+
+    private void updateIncomeExpenseType() {
+        if (category.getParentId() > 0) {
+            if (category.parent.isIncome()) {
+                incomeExpenseButton.setChecked(true);
+            } else {
+                incomeExpenseButton.setChecked(false);
+            }
+            incomeExpenseButton.setEnabled(false);
+        } else {
+            incomeExpenseButton.setChecked(category.isIncome());
+            incomeExpenseButton.setEnabled(true);
         }
     }
 
@@ -432,13 +452,6 @@ public class CategoryActivity extends AbstractActivity implements CategorySelect
                     setSmsTemplateData(v, t);
                 }
             }
-        }
-    }
-
-    @Override
-    public void onCategorySelected(Category parent, boolean selectLast) {
-        if (parent.id != category.id) {
-            selectParentCategory(parent);
         }
     }
 }

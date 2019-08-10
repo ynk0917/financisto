@@ -16,9 +16,7 @@ import android.os.Bundle;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Toast;
-
 import java.io.File;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 import ru.orangesoftware.financisto.utils.PinProtection;
@@ -27,17 +25,14 @@ public abstract class AbstractImportActivity extends Activity {
 
     public static final int IMPORT_FILENAME_REQUESTCODE = 0xff;
 
-    private final int layoutId;
     protected ImageButton bBrowse;
+
     protected EditText edFilename;
+
+    private final int layoutId;
 
     public AbstractImportActivity(int layoutId) {
         this.layoutId = layoutId;
-    }
-
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
     }
 
     @Override
@@ -51,6 +46,44 @@ public abstract class AbstractImportActivity extends Activity {
 
         internalOnCreate();
     }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == IMPORT_FILENAME_REQUESTCODE) {
+            if (resultCode == RESULT_OK && data != null) {
+                Uri fileUri = data.getData();
+                if (fileUri != null) {
+                    String filePath = fileUri.getPath();
+                    if (filePath != null) {
+                        edFilename.setText(filePath);
+                        savePreferences();
+                    }
+                }
+            }
+        }
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        PinProtection.unlock(this);
+        restorePreferences();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        PinProtection.lock(this);
+        savePreferences();
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
+    }
+
+    protected abstract void internalOnCreate();
 
     protected void openFile() {
         String filePath = edFilename.getText().toString();
@@ -71,43 +104,10 @@ public abstract class AbstractImportActivity extends Activity {
 
     }
 
-    protected abstract void internalOnCreate();
-
-    protected abstract void updateResultIntentFromUi(Intent data);
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == IMPORT_FILENAME_REQUESTCODE) {
-            if (resultCode == RESULT_OK && data != null) {
-                Uri fileUri = data.getData();
-                if (fileUri != null) {
-                    String filePath = fileUri.getPath();
-                    if (filePath != null) {
-                        edFilename.setText(filePath);
-                        savePreferences();
-                    }
-                }
-            }
-        }
-
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        PinProtection.lock(this);
-        savePreferences();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        PinProtection.unlock(this);
-        restorePreferences();
-    }
+    protected abstract void restorePreferences();
 
     protected abstract void savePreferences();
 
-    protected abstract void restorePreferences();
+    protected abstract void updateResultIntentFromUi(Intent data);
 
 }

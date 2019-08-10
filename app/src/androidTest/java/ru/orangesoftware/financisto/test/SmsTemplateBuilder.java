@@ -6,6 +6,7 @@ import ru.orangesoftware.financisto.model.SmsTemplate;
 public class SmsTemplateBuilder {
 
     private final DatabaseAdapter db;
+
     private final SmsTemplate t = new SmsTemplate();
 
     public static SmsTemplate createDefault(DatabaseAdapter db) {
@@ -20,16 +21,6 @@ public class SmsTemplateBuilder {
         this.db = db;
     }
 
-    public SmsTemplateBuilder title(String title) {
-        t.title = title;
-        return this;
-    }
-
-    public SmsTemplateBuilder template(String template) {
-        t.template = template;
-        return this;
-    }
-
     public SmsTemplateBuilder accountId(int id) {
         t.accountId = id;
         return this;
@@ -40,13 +31,23 @@ public class SmsTemplateBuilder {
         return this;
     }
 
+    public SmsTemplate create() {
+        db.saveOrUpdate(t);
+        return t;
+    }
+
     public SmsTemplateBuilder income(boolean income) {
         t.isIncome = income;
         return this;
     }
 
-    public SmsTemplate create() {
-        db.saveOrUpdate(t);
-        return t;
+    public SmsTemplateBuilder template(String template) {
+        t.template = template;
+        return this;
+    }
+
+    public SmsTemplateBuilder title(String title) {
+        t.title = title;
+        return this;
     }
 }

@@ -16,20 +16,27 @@ public class AttributeBuilder {
 
     private final DatabaseAdapter db;
 
-    private AttributeBuilder(DatabaseAdapter db) {
-        this.db = db;
+    public static TransactionAttribute attributeValue(Attribute a, String value) {
+        TransactionAttribute ta = new TransactionAttribute();
+        ta.attributeId = a.id;
+        ta.value = value;
+        return ta;
     }
 
     public static AttributeBuilder withDb(DatabaseAdapter db) {
         return new AttributeBuilder(db);
     }
 
-    public Attribute createTextAttribute(String name) {
-        return createAttribute(name, Attribute.TYPE_TEXT);
+    private AttributeBuilder(DatabaseAdapter db) {
+        this.db = db;
     }
 
     public Attribute createNumberAttribute(String name) {
         return createAttribute(name, Attribute.TYPE_NUMBER);
+    }
+
+    public Attribute createTextAttribute(String name) {
+        return createAttribute(name, Attribute.TYPE_TEXT);
     }
 
     private Attribute createAttribute(String name, int type) {
@@ -38,13 +45,6 @@ public class AttributeBuilder {
         a.type = type;
         a.id = db.insertOrUpdate(a);
         return a;
-    }
-
-    public static TransactionAttribute attributeValue(Attribute a, String value) {
-        TransactionAttribute ta = new TransactionAttribute();
-        ta.attributeId = a.id;
-        ta.value = value;
-        return ta;
     }
 
 }

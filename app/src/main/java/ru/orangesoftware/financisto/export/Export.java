@@ -14,7 +14,6 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.Environment;
-
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
@@ -26,7 +25,6 @@ import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.zip.GZIPOutputStream;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.activity.RequestPermission;
 import ru.orangesoftware.financisto.export.drive.GoogleDriveClient;
@@ -37,10 +35,41 @@ import ru.orangesoftware.financisto.utils.MyPreferences;
 public abstract class Export {
 
     public static final File DEFAULT_EXPORT_PATH = Environment.getExternalStoragePublicDirectory("financisto");
+
     public static final String BACKUP_MIME_TYPE = "application/x-gzip";
 
     private final Context context;
+
     private final boolean useGzip;
+
+    public static File getBackupFile(Context context, String backupFileName) {
+        File path = getBackupFolder(context);
+        return new File(path, backupFileName);
+    }
+
+    public static File getBackupFolder(Context context) {
+        String path = MyPreferences.getDatabaseBackupFolder(context);
+        File file = new File(path);
+        file.mkdirs();
+        if (file.isDirectory() && file.canWrite()) {
+            return file;
+        }
+        file = Export.DEFAULT_EXPORT_PATH;
+        file.mkdirs();
+        return file;
+    }
+
+    public static void uploadBackupFileToDropbox(Context context, String backupFileName) throws Exception {
+        File file = getBackupFile(context, backupFileName);
+        Dropbox dropbox = new Dropbox(context);
+        dropbox.uploadFile(file);
+    }
+
+    public static void uploadBackupFileToGoogleDrive(Context context, String backupFileName) throws Exception {
+        File file = getBackupFile(context, backupFileName);
+        GoogleDriveClient driveClient = GoogleDriveClient_.getInstance_(context);
+        driveClient.uploadFile(file);
+    }
 
     protected Export(Context context, boolean useGzip) {
         this.context = context;
@@ -68,8 +97,11 @@ public abstract class Export {
         return fileName;
     }
 
-    protected void export(OutputStream outputStream) throws Exception {
-        generateBackup(outputStream);
+    public byte[] generateBackupBytes() throws Exception {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        OutputStream out = new BufferedOutputStream(new GZIPOutputStream(outputStream));
+        generateBackup(out);
+        return outputStream.toByteArray();
     }
 
     public String generateFilename() {
@@ -77,12 +109,17 @@ public abstract class Export {
         return df.format(new Date()) + getExtension();
     }
 
-    public byte[] generateBackupBytes() throws Exception {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        OutputStream out = new BufferedOutputStream(new GZIPOutputStream(outputStream));
-        generateBackup(out);
-        return outputStream.toByteArray();
+    protected void export(OutputStream outputStream) throws Exception {
+        generateBackup(outputStream);
     }
+
+    protected abstract String getExtension();
+
+    protected abstract void writeBody(BufferedWriter bw) throws IOException;
+
+    protected abstract void writeFooter(BufferedWriter bw) throws IOException;
+
+    protected abstract void writeHeader(BufferedWriter bw) throws IOException, NameNotFoundException;
 
     private void generateBackup(OutputStream outputStream) throws Exception {
         OutputStreamWriter osw = new OutputStreamWriter(outputStream, "UTF-8");
@@ -91,43 +128,6 @@ public abstract class Export {
             writeBody(bw);
             writeFooter(bw);
         }
-    }
-
-    protected abstract void writeHeader(BufferedWriter bw) throws IOException, NameNotFoundException;
-
-    protected abstract void writeBody(BufferedWriter bw) throws IOException;
-
-    protected abstract void writeFooter(BufferedWriter bw) throws IOException;
-
-    protected abstract String getExtension();
-
-    public static File getBackupFolder(Context context) {
-        String path = MyPreferences.getDatabaseBackupFolder(context);
-        File file = new File(path);
-        file.mkdirs();
-        if (file.isDirectory() && file.canWrite()) {
-            return file;
-        }
-        file = Export.DEFAULT_EXPORT_PATH;
-        file.mkdirs();
-        return file;
-    }
-
-    public static File getBackupFile(Context context, String backupFileName) {
-        File path = getBackupFolder(context);
-        return new File(path, backupFileName);
-    }
-
-    public static void uploadBackupFileToDropbox(Context context, String backupFileName) throws Exception {
-        File file = getBackupFile(context, backupFileName);
-        Dropbox dropbox = new Dropbox(context);
-        dropbox.uploadFile(file);
-    }
-
-    public static void uploadBackupFileToGoogleDrive(Context context, String backupFileName) throws Exception {
-        File file = getBackupFile(context, backupFileName);
-        GoogleDriveClient driveClient = GoogleDriveClient_.getInstance_(context);
-        driveClient.uploadFile(file);
     }
 
 }

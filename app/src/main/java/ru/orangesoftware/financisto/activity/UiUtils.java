@@ -1,10 +1,8 @@
 package ru.orangesoftware.financisto.activity;
 
 import android.content.Context;
-
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog;
 import com.wdullaer.materialdatetimepicker.time.TimePickerDialog;
-
 import ru.orangesoftware.financisto.R;
 
 public class UiUtils {

@@ -17,9 +17,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ListAdapter;
-
 import java.util.List;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.adapter.CurrencyListAdapter;
 import ru.orangesoftware.financisto.model.Currency;
@@ -28,7 +26,9 @@ import ru.orangesoftware.financisto.utils.MenuItemInfo;
 public class CurrencyListActivity extends AbstractListActivity {
 
     private static final int NEW_CURRENCY_REQUEST = 1;
+
     private static final int EDIT_CURRENCY_REQUEST = 2;
+
     private static final int MENU_MAKE_DEFAULT = MENU_ADD + 1;
 
     public CurrencyListActivity() {
@@ -36,31 +36,25 @@ public class CurrencyListActivity extends AbstractListActivity {
     }
 
     @Override
-    protected void internalOnCreate(Bundle savedInstanceState) {
-        super.internalOnCreate(savedInstanceState);
-        ImageButton bRates = findViewById(R.id.bRates);
-        bRates.setOnClickListener(view -> {
-            Intent intent = new Intent(CurrencyListActivity.this, ExchangeRatesListActivity.class);
-            startActivity(intent);
-        });
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            cursor.requery();
+        }
     }
 
     @Override
-    protected List<MenuItemInfo> createContextMenus(long id) {
-        List<MenuItemInfo> menus = super.createContextMenus(id);
-        for (MenuItemInfo m : menus) {
-            if (m.menuId == MENU_VIEW) {
-                m.enabled = false;
-                break;
-            }
-        }
-        menus.add(new MenuItemInfo(MENU_MAKE_DEFAULT, R.string.currency_make_default));
-        return menus;
+    public void editItem(View v, int position, long id) {
+        Intent intent = new Intent(this, CurrencyActivity.class);
+        intent.putExtra(CurrencyActivity.CURRENCY_ID_EXTRA, id);
+        startActivityForResult(intent, EDIT_CURRENCY_REQUEST);
     }
 
     @Override
     public boolean onPopupItemSelected(int itemId, View view, int position, long id) {
-        if (super.onPopupItemSelected(itemId, view, position, id)) return true;
+        if (super.onPopupItemSelected(itemId, view, position, id)) {
+            return true;
+        }
         switch (itemId) {
             case MENU_MAKE_DEFAULT: {
                 makeCurrencyDefault(id);
@@ -68,13 +62,6 @@ public class CurrencyListActivity extends AbstractListActivity {
             }
         }
         return false;
-    }
-
-    private void makeCurrencyDefault(long id) {
-        Currency c = db.get(Currency.class, id);
-        c.isDefault = true;
-        db.saveOrUpdate(c);
-        recreateCursor();
     }
 
     @Override
@@ -95,16 +82,21 @@ public class CurrencyListActivity extends AbstractListActivity {
     }
 
     @Override
-    protected Cursor createCursor() {
-        return db.getAllCurrencies("name");
+    protected List<MenuItemInfo> createContextMenus(long id) {
+        List<MenuItemInfo> menus = super.createContextMenus(id);
+        for (MenuItemInfo m : menus) {
+            if (m.menuId == MENU_VIEW) {
+                m.enabled = false;
+                break;
+            }
+        }
+        menus.add(new MenuItemInfo(MENU_MAKE_DEFAULT, R.string.currency_make_default));
+        return menus;
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            cursor.requery();
-        }
+    protected Cursor createCursor() {
+        return db.getAllCurrencies("name");
     }
 
     @Override
@@ -121,15 +113,25 @@ public class CurrencyListActivity extends AbstractListActivity {
     }
 
     @Override
-    public void editItem(View v, int position, long id) {
-        Intent intent = new Intent(this, CurrencyActivity.class);
-        intent.putExtra(CurrencyActivity.CURRENCY_ID_EXTRA, id);
-        startActivityForResult(intent, EDIT_CURRENCY_REQUEST);
+    protected void internalOnCreate(Bundle savedInstanceState) {
+        super.internalOnCreate(savedInstanceState);
+        ImageButton bRates = findViewById(R.id.bRates);
+        bRates.setOnClickListener(view -> {
+            Intent intent = new Intent(CurrencyListActivity.this, ExchangeRatesListActivity.class);
+            startActivity(intent);
+        });
     }
 
     @Override
     protected void viewItem(View v, int position, long id) {
         editItem(v, position, id);
+    }
+
+    private void makeCurrencyDefault(long id) {
+        Currency c = db.get(Currency.class, id);
+        c.isDefault = true;
+        db.saveOrUpdate(c);
+        recreateCursor();
     }
 
 }

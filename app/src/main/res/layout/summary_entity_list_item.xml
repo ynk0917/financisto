@@ -4,7 +4,7 @@
   are made available under the terms of the GNU Public License v2.0
   which accompanies this distribution, and is available at
   http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
-  
+
   Contributors:
       Denis Solonenko - initial API and implementation
 -->
@@ -23,8 +23,7 @@
         android:layout_alignWithParentIfMissing="true"
         android:layout_marginLeft="11dip"
         android:layout_marginTop="8dip"
-        android:tint="@color/holo_gray_bright"
-        />
+        android:tint="@color/holo_gray_bright" />
 
     <TextView
         android:id="@+id/label"

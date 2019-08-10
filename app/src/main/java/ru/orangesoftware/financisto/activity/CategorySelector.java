@@ -33,19 +33,36 @@ import ru.orangesoftware.financisto.view.AttributeViewFactory;
 
 public class CategorySelector {
 
-    private final Activity activity;
-    private final DatabaseAdapter db;
-    private final ActivityLayout x;
+    public interface CategorySelectorListener {
 
-    private TextView categoryText;
-    private Cursor categoryCursor;
-    private ListAdapter categoryAdapter;
+        void onCategorySelected(Category category, boolean selectLast);
+    }
+
+    public enum SelectorType {
+        PLAIN, TRANSACTION, SPLIT, TRANSFER, PARENT
+    }
+
+    private final Activity activity;
+
     private LinearLayout attributesLayout;
 
-    private long selectedCategoryId = 0;
-    private CategorySelectorListener listener;
-    private boolean showSplitCategory = true;
+    private ListAdapter categoryAdapter;
+
+    private Cursor categoryCursor;
+
+    private TextView categoryText;
+
+    private final DatabaseAdapter db;
+
     private final long excludingSubTreeId;
+
+    private CategorySelectorListener listener;
+
+    private long selectedCategoryId = 0;
+
+    private boolean showSplitCategory = true;
+
+    private final ActivityLayout x;
 
     public CategorySelector(Activity activity, DatabaseAdapter db, ActivityLayout x) {
         this(activity, db, x, -1);
@@ -58,8 +75,53 @@ public class CategorySelector {
         this.excludingSubTreeId = exclSubTreeId;
     }
 
-    public void setListener(CategorySelectorListener listener) {
-        this.listener = listener;
+    public void addAttributes(Transaction transaction) {
+        attributesLayout.removeAllViews();
+        ArrayList<Attribute> attributes = db.getAllAttributesForCategory(selectedCategoryId);
+        Map<Long, String> values = transaction.categoryAttributes;
+        for (Attribute a : attributes) {
+            AttributeView av = inflateAttribute(a);
+            String value = values != null ? values.get(a.id) : null;
+            if (value == null) {
+                value = a.defaultValue;
+            }
+            View v = av.inflateView(attributesLayout, value);
+            v.setTag(av);
+        }
+    }
+
+    public void createAttributesLayout(LinearLayout layout) {
+        attributesLayout = new LinearLayout(activity);
+        attributesLayout.setOrientation(LinearLayout.VERTICAL);
+        layout.addView(attributesLayout, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.FILL_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+    }
+
+    public void createDummyNode() {
+        categoryText = new EditText(activity);
+    }
+
+    public void createNode(LinearLayout layout, SelectorType type) {
+        switch (type) {
+            case TRANSACTION:
+                categoryText = x.addListNodeCategory(layout);
+                break;
+            case SPLIT:
+            case TRANSFER:
+                categoryText = x.addListNodePlus(layout, R.id.category, R.id.category_add, R.string.category,
+                        R.string.select_category);
+                break;
+            case PLAIN:
+                categoryText = x.addListNode(layout, R.id.category, R.string.category, R.string.select_category);
+                break;
+            case PARENT:
+                categoryText = x.addListNode(layout, R.id.category, R.string.parent, R.string.select_category);
+                break;
+            default:
+                throw new IllegalArgumentException("unknown type: " + type);
+        }
+
+        categoryText.setText(R.string.no_category);
     }
 
     public void doNotShowSplitCategory() {
@@ -80,121 +142,12 @@ public class CategorySelector {
         categoryAdapter = TransactionUtils.createCategoryAdapter(db, activity, categoryCursor);
     }
 
-    public void setNode(TextView textNode) {
-        categoryText = textNode;
-    }
-
-    public void createNode(LinearLayout layout, SelectorType type) {
-        switch (type) {
-            case TRANSACTION:
-                categoryText = x.addListNodeCategory(layout);
-                break;
-            case SPLIT:
-            case TRANSFER:
-                categoryText = x.addListNodePlus(layout, R.id.category, R.id.category_add, R.string.category, R.string.select_category);
-                break;
-            case PLAIN:
-                categoryText = x.addListNode(layout, R.id.category, R.string.category, R.string.select_category);
-                break;
-            case PARENT:
-                categoryText = x.addListNode(layout, R.id.category, R.string.parent, R.string.select_category);
-                break;
-            default:
-                throw new IllegalArgumentException("unknown type: " + type);
-        }
-
-        categoryText.setText(R.string.no_category);
-    }
-
-    public void createDummyNode() {
-        categoryText = new EditText(activity);
-    }
-
-    public void onClick(int id) {
-        switch (id) {
-            case R.id.category: {
-                if (!CategorySelectorActivity.pickCategory(activity, selectedCategoryId, excludingSubTreeId, showSplitCategory)) {
-                    x.select(activity, R.id.category, R.string.category, categoryCursor, categoryAdapter,
-                            DatabaseHelper.CategoryViewColumns._id.name(), selectedCategoryId);
-                }
-                break;
-            }
-            case R.id.category_add: {
-                Intent intent = new Intent(activity, CategoryActivity.class);
-                activity.startActivityForResult(intent, R.id.category_add);
-                break;
-            }
-            case R.id.category_split:
-                selectCategory(Category.SPLIT_CATEGORY_ID);
-                break;
-        }
-    }
-
-    public void onSelectedId(int id, long selectedId) {
-        if (id == R.id.category) {
-            selectCategory(selectedId);
-        }
-    }
-
     public long getSelectedCategoryId() {
         return selectedCategoryId;
     }
 
-    public void selectCategory(long categoryId) {
-        selectCategory(categoryId, true);
-    }
-
-    public void selectCategory(long categoryId, boolean selectLast) {
-        if (selectedCategoryId != categoryId) {
-            Category category = db.getCategoryWithParent(categoryId);
-            if (category != null) {
-                categoryText.setText(Category.getTitle(category.title, category.level));
-                selectedCategoryId = categoryId;
-                if (listener != null) {
-                    listener.onCategorySelected(category, selectLast);
-                }
-            }
-        }
-    }
-
-    public void createAttributesLayout(LinearLayout layout) {
-        attributesLayout = new LinearLayout(activity);
-        attributesLayout.setOrientation(LinearLayout.VERTICAL);
-        layout.addView(attributesLayout, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.FILL_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-    }
-
-    protected List<TransactionAttribute> getAttributes() {
-        List<TransactionAttribute> list = new LinkedList<TransactionAttribute>();
-        long count = attributesLayout.getChildCount();
-        for (int i=0; i<count; i++) {
-            View v = attributesLayout.getChildAt(i);
-            Object o = v.getTag();
-            if (o instanceof AttributeView) {
-                AttributeView av = (AttributeView)o;
-                TransactionAttribute ta = av.newTransactionAttribute();
-                list.add(ta);
-            }
-        }
-        return list;
-    }
-
-    public void addAttributes(Transaction transaction) {
-        attributesLayout.removeAllViews();
-        ArrayList<Attribute> attributes = db.getAllAttributesForCategory(selectedCategoryId);
-        Map<Long, String> values = transaction.categoryAttributes;
-        for (Attribute a : attributes) {
-            AttributeView av = inflateAttribute(a);
-            String value = values != null ? values.get(a.id) : null;
-            if (value == null) {
-                value = a.defaultValue;
-            }
-            View v = av.inflateView(attributesLayout, value);
-            v.setTag(av);
-        }
-    }
-
-    private AttributeView inflateAttribute(Attribute attribute) {
-        return AttributeViewFactory.createViewForAttribute(activity, attribute);
+    public boolean isSplitCategorySelected() {
+        return Category.isSplit(selectedCategoryId);
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -217,17 +170,75 @@ public class CategorySelector {
         }
     }
 
-    public boolean isSplitCategorySelected() {
-        return Category.isSplit(selectedCategoryId);
+    public void onClick(int id) {
+        switch (id) {
+            case R.id.category: {
+                if (!CategorySelectorActivity
+                        .pickCategory(activity, selectedCategoryId, excludingSubTreeId, showSplitCategory)) {
+                    x.select(activity, R.id.category, R.string.category, categoryCursor, categoryAdapter,
+                            DatabaseHelper.CategoryViewColumns._id.name(), selectedCategoryId);
+                }
+                break;
+            }
+            case R.id.category_add: {
+                Intent intent = new Intent(activity, CategoryActivity.class);
+                activity.startActivityForResult(intent, R.id.category_add);
+                break;
+            }
+            case R.id.category_split:
+                selectCategory(Category.SPLIT_CATEGORY_ID);
+                break;
+        }
     }
 
-    public interface CategorySelectorListener {
-        void onCategorySelected(Category category, boolean selectLast);
+    public void onSelectedId(int id, long selectedId) {
+        if (id == R.id.category) {
+            selectCategory(selectedId);
+        }
     }
 
+    public void selectCategory(long categoryId) {
+        selectCategory(categoryId, true);
+    }
 
-    public enum SelectorType {
-        PLAIN, TRANSACTION, SPLIT, TRANSFER, PARENT
+    public void selectCategory(long categoryId, boolean selectLast) {
+        if (selectedCategoryId != categoryId) {
+            Category category = db.getCategoryWithParent(categoryId);
+            if (category != null) {
+                categoryText.setText(Category.getTitle(category.title, category.level));
+                selectedCategoryId = categoryId;
+                if (listener != null) {
+                    listener.onCategorySelected(category, selectLast);
+                }
+            }
+        }
+    }
+
+    public void setListener(CategorySelectorListener listener) {
+        this.listener = listener;
+    }
+
+    public void setNode(TextView textNode) {
+        categoryText = textNode;
+    }
+
+    protected List<TransactionAttribute> getAttributes() {
+        List<TransactionAttribute> list = new LinkedList<TransactionAttribute>();
+        long count = attributesLayout.getChildCount();
+        for (int i = 0; i < count; i++) {
+            View v = attributesLayout.getChildAt(i);
+            Object o = v.getTag();
+            if (o instanceof AttributeView) {
+                AttributeView av = (AttributeView) o;
+                TransactionAttribute ta = av.newTransactionAttribute();
+                list.add(ta);
+            }
+        }
+        return list;
+    }
+
+    private AttributeView inflateAttribute(Attribute attribute) {
+        return AttributeViewFactory.createViewForAttribute(activity, attribute);
     }
 
 }

@@ -20,9 +20,7 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import java.text.DecimalFormat;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.activity.ActivityLayout;
 import ru.orangesoftware.financisto.model.Currency;
@@ -33,56 +31,99 @@ import ru.orangesoftware.financisto.utils.Utils;
 
 public class RateNode {
 
+    private class RateDownloadTask extends AsyncTask<Void, Void, ExchangeRate> {
+
+        private ProgressDialog progressDialog;
+
+        @Override
+        protected ExchangeRate doInBackground(Void... args) {
+            Currency fromCurrency = owner.getCurrencyFrom();
+            Currency toCurrency = owner.getCurrencyTo();
+            if (fromCurrency != null && toCurrency != null) {
+                return getProvider().getRate(fromCurrency, toCurrency);
+            }
+            return null;
+        }
+
+        @Override
+        protected void onCancelled() {
+            super.onCancelled();
+            owner.onAfterRateDownload();
+        }
+
+        @Override
+        protected void onPostExecute(ExchangeRate result) {
+            progressDialog.dismiss();
+            owner.onAfterRateDownload();
+            if (result != null) {
+                if (result.isOk()) {
+                    setRate(result.rate);
+                    owner.onSuccessfulRateDownload();
+                } else {
+                    Toast.makeText(owner.getActivity(), result.getErrorMessage(), Toast.LENGTH_LONG).show();
+                }
+            }
+        }
+
+        @Override
+        protected void onPreExecute() {
+            showProgressDialog();
+            owner.onBeforeRateDownload();
+        }
+
+        private ExchangeRateProvider getProvider() {
+            return MyPreferences.createExchangeRatesProvider(owner.getActivity());
+        }
+
+        private void showProgressDialog() {
+            Context context = owner.getActivity();
+            String message = context
+                    .getString(R.string.downloading_rate, owner.getCurrencyFrom(), owner.getCurrencyTo());
+            progressDialog = ProgressDialog.show(context, null, message, true, true, dialogInterface -> cancel(true));
+        }
+
+    }
+
     public static final int EDIT_RATE = 112;
+
+    View rateInfoNode;
+
+    private ImageButton bCalc;
+
+    private ImageButton bDownload;
+
+    private final LinearLayout layout;
 
     private final DecimalFormat nf = new DecimalFormat("0.00000");
 
     private final RateNodeOwner owner;
-    private final ActivityLayout x;
-    private final LinearLayout layout;
 
-    View rateInfoNode;
-
-    private TextView rateInfo;
     private EditText rate;
 
-    private ImageButton bCalc;
-    private ImageButton bDownload;
+    private TextView rateInfo;
+
+    private final TextWatcher rateWatcher = new TextWatcher() {
+        @Override
+        public void afterTextChanged(Editable s) {
+            owner.onRateChanged();
+        }
+
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+        }
+
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) {
+        }
+    };
+
+    private final ActivityLayout x;
 
     public RateNode(RateNodeOwner owner, ActivityLayout x, LinearLayout layout) {
         this.owner = owner;
         this.x = x;
         this.layout = layout;
         createUI();
-    }
-
-    private void createUI() {
-        rateInfoNode = x.addRateNode(layout);
-        rate = rateInfoNode.findViewById(R.id.rate);
-        rate.addTextChangedListener(rateWatcher);
-        rate.setOnFocusChangeListener((view, b) -> {
-            if (b) {
-                rate.selectAll();
-            }
-        });
-        rateInfo = rateInfoNode.findViewById(R.id.data);
-        bCalc = rateInfoNode.findViewById(R.id.rateCalculator);
-        bCalc.setOnClickListener(v -> {
-            Activity activity = owner.getActivity();
-
-            CalculatorInput input = CalculatorInput_.builder().amount(String.valueOf(getRate())).build();
-            input.setListener(amount -> {
-                try {
-                    setRate(Float.parseFloat(amount));
-                    updateRateInfo();
-                    owner.onRateChanged();
-                } catch (NumberFormatException ignored) {
-                }
-            });
-            input.show(activity.getFragmentManager(), "calculator");
-        });
-        bDownload = rateInfoNode.findViewById(R.id.rateDownload);
-        bDownload.setOnClickListener(v -> new RateDownloadTask().execute());
     }
 
     public void disableAll() {
@@ -122,77 +163,40 @@ public class RateNode {
         Currency currencyFrom = owner.getCurrencyFrom();
         Currency currencyTo = owner.getCurrencyTo();
         if (currencyFrom != null && currencyTo != null) {
-            sb.append("1").append(currencyFrom.name).append("=").append(nf.format(r)).append(currencyTo.name).append(", ");
+            sb.append("1").append(currencyFrom.name).append("=").append(nf.format(r)).append(currencyTo.name)
+                    .append(", ");
             sb.append("1").append(currencyTo.name).append("=").append(nf.format(1.0 / r)).append(currencyFrom.name);
         }
         rateInfo.setText(sb.toString());
     }
 
-    private class RateDownloadTask extends AsyncTask<Void, Void, ExchangeRate> {
-
-        private ProgressDialog progressDialog;
-
-        @Override
-        protected ExchangeRate doInBackground(Void... args) {
-            Currency fromCurrency = owner.getCurrencyFrom();
-            Currency toCurrency = owner.getCurrencyTo();
-            if (fromCurrency != null && toCurrency != null) {
-                return getProvider().getRate(fromCurrency, toCurrency);
+    private void createUI() {
+        rateInfoNode = x.addRateNode(layout);
+        rate = rateInfoNode.findViewById(R.id.rate);
+        rate.addTextChangedListener(rateWatcher);
+        rate.setOnFocusChangeListener((view, b) -> {
+            if (b) {
+                rate.selectAll();
             }
-            return null;
-        }
+        });
+        rateInfo = rateInfoNode.findViewById(R.id.data);
+        bCalc = rateInfoNode.findViewById(R.id.rateCalculator);
+        bCalc.setOnClickListener(v -> {
+            Activity activity = owner.getActivity();
 
-        @Override
-        protected void onPreExecute() {
-            showProgressDialog();
-            owner.onBeforeRateDownload();
-        }
-
-        private void showProgressDialog() {
-            Context context = owner.getActivity();
-            String message = context.getString(R.string.downloading_rate, owner.getCurrencyFrom(), owner.getCurrencyTo());
-            progressDialog = ProgressDialog.show(context, null, message, true, true, dialogInterface -> cancel(true));
-        }
-
-        @Override
-        protected void onCancelled() {
-            super.onCancelled();
-            owner.onAfterRateDownload();
-        }
-
-        @Override
-        protected void onPostExecute(ExchangeRate result) {
-            progressDialog.dismiss();
-            owner.onAfterRateDownload();
-            if (result != null) {
-                if (result.isOk()) {
-                    setRate(result.rate);
-                    owner.onSuccessfulRateDownload();
-                } else {
-                    Toast.makeText(owner.getActivity(), result.getErrorMessage(), Toast.LENGTH_LONG).show();
+            CalculatorInput input = CalculatorInput_.builder().amount(String.valueOf(getRate())).build();
+            input.setListener(amount -> {
+                try {
+                    setRate(Float.parseFloat(amount));
+                    updateRateInfo();
+                    owner.onRateChanged();
+                } catch (NumberFormatException ignored) {
                 }
-            }
-        }
-
-        private ExchangeRateProvider getProvider() {
-            return MyPreferences.createExchangeRatesProvider(owner.getActivity());
-        }
-
+            });
+            input.show(activity.getFragmentManager(), "calculator");
+        });
+        bDownload = rateInfoNode.findViewById(R.id.rateDownload);
+        bDownload.setOnClickListener(v -> new RateDownloadTask().execute());
     }
-
-    private final TextWatcher rateWatcher = new TextWatcher() {
-        @Override
-        public void afterTextChanged(Editable s) {
-            owner.onRateChanged();
-        }
-
-        @Override
-        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-        }
-
-        @Override
-        public void onTextChanged(CharSequence s, int start, int before, int count) {
-        }
-    };
 
 }

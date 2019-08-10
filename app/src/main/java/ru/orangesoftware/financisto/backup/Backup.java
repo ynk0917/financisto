@@ -10,9 +10,6 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.backup;
 
-import android.content.Context;
-import java.io.File;
-import java.util.Arrays;
 import static ru.orangesoftware.financisto.db.DatabaseHelper.ACCOUNT_TABLE;
 import static ru.orangesoftware.financisto.db.DatabaseHelper.ATTRIBUTES_TABLE;
 import static ru.orangesoftware.financisto.db.DatabaseHelper.BUDGET_TABLE;
@@ -27,6 +24,10 @@ import static ru.orangesoftware.financisto.db.DatabaseHelper.PROJECT_TABLE;
 import static ru.orangesoftware.financisto.db.DatabaseHelper.SMS_TEMPLATES_TABLE;
 import static ru.orangesoftware.financisto.db.DatabaseHelper.TRANSACTION_ATTRIBUTE_TABLE;
 import static ru.orangesoftware.financisto.db.DatabaseHelper.TRANSACTION_TABLE;
+
+import android.content.Context;
+import java.io.File;
+import java.util.Arrays;
 import ru.orangesoftware.financisto.export.Export;
 
 public final class Backup {
@@ -36,7 +37,8 @@ public final class Backup {
             TRANSACTION_ATTRIBUTE_TABLE, BUDGET_TABLE, CATEGORY_TABLE,
             CURRENCY_TABLE, LOCATIONS_TABLE, PROJECT_TABLE, TRANSACTION_TABLE,
             PAYEE_TABLE, CCARD_CLOSING_DATE_TABLE, SMS_TEMPLATES_TABLE,
-            "split", /* todo.mb: seems not used, found only in old 20110422_0051_create_split_table.sql, should be removed then */
+            "split",
+            /* todo.mb: seems not used, found only in old 20110422_0051_create_split_table.sql, should be removed then */
             EXCHANGE_RATES_TABLE};
 
     public static final String[] BACKUP_TABLES_WITH_SYSTEM_IDS = {
@@ -47,9 +49,6 @@ public final class Backup {
             "20110903_0129_alter_template_splits.sql",
             "20171230_1852_alter_electronic_account_type.sql"
     };
-
-    private Backup() {
-    }
 
     public static String[] listBackups(Context context) {
         File backupPath = Export.getBackupFolder(context);
@@ -69,6 +68,9 @@ public final class Backup {
             }
         }
         return false;
+    }
+
+    private Backup() {
     }
 
 }

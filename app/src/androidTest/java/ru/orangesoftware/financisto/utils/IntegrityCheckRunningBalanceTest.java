@@ -21,7 +21,9 @@ import ru.orangesoftware.financisto.test.TransactionBuilder;
 public class IntegrityCheckRunningBalanceTest extends AbstractDbTest {
 
     Account a1;
+
     Account a2;
+
     IntegrityCheckRunningBalance integrity;
 
     @Override
@@ -51,12 +53,12 @@ public class IntegrityCheckRunningBalanceTest extends AbstractDbTest {
         assertEquals(IntegrityCheck.Level.OK, integrity.check().level);
     }
 
-    private void breakRunningBalanceForAccount(Account a) {
-        db.db().execSQL("delete from running_balance where account_id=?", new String[]{String.valueOf(a.id)});
-    }
-
     private void breakRunningBalance() {
         db.db().execSQL("delete from running_balance");
+    }
+
+    private void breakRunningBalanceForAccount(Account a) {
+        db.db().execSQL("delete from running_balance where account_id=?", new String[]{String.valueOf(a.id)});
     }
 
 }

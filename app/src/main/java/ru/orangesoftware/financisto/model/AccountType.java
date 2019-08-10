@@ -20,21 +20,28 @@ public enum AccountType implements EntityEnum {
     BANK(R.string.account_type_bank, R.drawable.account_type_bank, true, false, false, false, false),
     DEBIT_CARD(R.string.account_type_debit_card, R.drawable.account_type_card, true, true, true, false, false),
     CREDIT_CARD(R.string.account_type_credit_card, R.drawable.account_type_card, true, true, true, true, false),
-    ELECTRONIC(R.string.account_type_electronic, R.drawable.account_type_electronic, false, false, false, false, true),
+    ELECTRONIC(R.string.account_type_electronic, R.drawable.account_type_electronic, false, false, false, false,
+            true),
     ASSET(R.string.account_type_asset, R.drawable.account_type_asset, false, false, false, false, false),
     LIABILITY(R.string.account_type_liability, R.drawable.account_type_liability, false, false, false, false, false),
     OTHER(R.string.account_type_other, R.drawable.account_type_other, false, false, false, false, false);
 
-    public final int titleId;
-    public final int iconId;
     public final boolean hasIssuer;
+
     public final boolean hasNumber;
+
+    public final int iconId;
+
     public final boolean isCard;
+
     public final boolean isCreditCard;
+
     public final boolean isElectronic;
 
+    public final int titleId;
+
     AccountType(int titleId, int iconId,
-                boolean hasIssuer, boolean hasNumber, boolean isCard, boolean isCreditCard, boolean isElectronic) {
+            boolean hasIssuer, boolean hasNumber, boolean isCard, boolean isCreditCard, boolean isElectronic) {
         this.titleId = titleId;
         this.iconId = iconId;
         this.hasIssuer = hasIssuer;
@@ -45,13 +52,13 @@ public enum AccountType implements EntityEnum {
     }
 
     @Override
-    public int getTitleId() {
-        return titleId;
+    public int getIconId() {
+        return iconId;
     }
 
     @Override
-    public int getIconId() {
-        return iconId;
+    public int getTitleId() {
+        return titleId;
     }
 
 }

@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
 /*
 ** Copyright (C) 2010 Cyril Mottier (http://www.cyrilmottier.com)
 **
@@ -17,9 +16,8 @@
 */
 -->
 
-<TextView
-	xmlns:android="http://schemas.android.com/apk/res/android"
-	style="@style/GreenDroid.Widget.QuickAction.Grid.Item"
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/GreenDroid.Widget.QuickAction.Grid.Item"
 
-	android:singleLine="false"
-	android:gravity="center"/>
+    android:singleLine="false"
+    android:gravity="center" />

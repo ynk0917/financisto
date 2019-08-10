@@ -11,5 +11,4 @@
     android:minWidth="180dp"
     android:minHeight="56dp"
     android:updatePeriodMillis="0"
-    android:initialLayout="@layout/widget_3x1"
-    />
+    android:initialLayout="@layout/widget_3x1" />

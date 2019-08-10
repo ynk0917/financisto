@@ -9,12 +9,10 @@ package ru.orangesoftware.financisto.backup;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.service.RecurrenceScheduler;
 import ru.orangesoftware.financisto.utils.CurrencyCache;
@@ -23,8 +21,10 @@ import ru.orangesoftware.financisto.utils.IntegrityFix;
 public abstract class FullDatabaseImport {
 
     protected final Context context;
-    protected final DatabaseAdapter dbAdapter;
+
     protected final SQLiteDatabase db;
+
+    protected final DatabaseAdapter dbAdapter;
 
     public FullDatabaseImport(Context context, DatabaseAdapter dbAdapter) {
         this.context = context;
@@ -48,16 +48,16 @@ public abstract class FullDatabaseImport {
 
     protected abstract void restoreDatabase() throws IOException;
 
-    private void cleanDatabase() {
-        for (String tableName : tablesToClean()) {
-            db.execSQL("delete from " + tableName);
-        }
-    }
-
     protected List<String> tablesToClean() {
         List<String> list = new ArrayList<>(Arrays.asList(Backup.BACKUP_TABLES));
         list.add("running_balance");
         return list;
+    }
+
+    private void cleanDatabase() {
+        for (String tableName : tablesToClean()) {
+            db.execSQL("delete from " + tableName);
+        }
     }
 
     private void scheduleAll() {

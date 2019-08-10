@@ -9,14 +9,13 @@
 package ru.orangesoftware.financisto.utils;
 
 import android.database.Cursor;
-import ru.orangesoftware.financisto.db.TransactionsTotalCalculator;
-import ru.orangesoftware.financisto.filter.WhereFilter;
-import ru.orangesoftware.financisto.db.DatabaseAdapter;
-import ru.orangesoftware.financisto.model.Total;
-import ru.orangesoftware.financisto.model.TransactionInfo;
-
 import java.util.Date;
 import java.util.List;
+import ru.orangesoftware.financisto.db.DatabaseAdapter;
+import ru.orangesoftware.financisto.db.TransactionsTotalCalculator;
+import ru.orangesoftware.financisto.filter.WhereFilter;
+import ru.orangesoftware.financisto.model.Total;
+import ru.orangesoftware.financisto.model.TransactionInfo;
 
 /**
  * Created by IntelliJ IDEA.
@@ -30,19 +29,16 @@ public class FuturePlanner extends AbstractPlanner {
     }
 
     @Override
+    protected Total[] calculateTotals(List<TransactionInfo> transactions) {
+        Total[] totals = new Total[1];
+        totals[0] = TransactionsTotalCalculator.calculateTotalFromListInHomeCurrency(db, transactions);
+        return totals;
+    }
+
+    @Override
     protected Cursor getRegularTransactions() {
         WhereFilter blotterFilter = WhereFilter.copyOf(filter);
         return db.getBlotter(blotterFilter);
-    }
-
-    @Override
-    protected TransactionInfo prepareScheduledTransaction(TransactionInfo scheduledTransaction) {
-        return scheduledTransaction;
-    }
-
-    @Override
-    protected boolean includeScheduledTransaction(TransactionInfo transaction) {
-        return true;
     }
 
     @Override
@@ -51,10 +47,13 @@ public class FuturePlanner extends AbstractPlanner {
     }
 
     @Override
-    protected Total[] calculateTotals(List<TransactionInfo> transactions) {
-        Total[] totals = new Total[1];
-        totals[0] = TransactionsTotalCalculator.calculateTotalFromListInHomeCurrency(db, transactions);
-        return totals;
+    protected boolean includeScheduledTransaction(TransactionInfo transaction) {
+        return true;
+    }
+
+    @Override
+    protected TransactionInfo prepareScheduledTransaction(TransactionInfo scheduledTransaction) {
+        return scheduledTransaction;
     }
 
     /*@Override

@@ -11,6 +11,9 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.utils.EnumUtils.selectEnum;
+import static ru.orangesoftware.financisto.utils.Utils.text;
+
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
@@ -26,7 +29,6 @@ import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.adapter.EntityEnumAdapter;
 import ru.orangesoftware.financisto.model.Account;
@@ -41,43 +43,61 @@ import ru.orangesoftware.financisto.utils.Utils;
 import ru.orangesoftware.financisto.widget.AmountInput;
 import ru.orangesoftware.financisto.widget.AmountInput_;
 
-import static ru.orangesoftware.financisto.utils.EnumUtils.selectEnum;
-import static ru.orangesoftware.financisto.utils.Utils.text;
-
 public class AccountActivity extends AbstractActivity {
 
     public static final String ACCOUNT_ID_EXTRA = "accountId";
 
     private static final int NEW_CURRENCY_REQUEST = 1;
 
-    private AmountInput amountInput;
-    private AmountInput limitInput;
-    private View limitAmountView;
+    private Account account = new Account();
+
     private EditText accountTitle;
 
-    private Cursor currencyCursor;
-    private TextView currencyText;
-    private View accountTypeNode;
-    private View cardIssuerNode;
-    private View electronicPaymentNode;
-    private View issuerNode;
-    private EditText numberText;
-    private View numberNode;
-    private EditText issuerName;
-    private EditText sortOrderText;
-    private CheckBox isIncludedIntoTotals;
-    private EditText noteText;
-    private EditText closingDayText;
-    private EditText paymentDayText;
-    private View closingDayNode;
-    private View paymentDayNode;
-
     private EntityEnumAdapter<AccountType> accountTypeAdapter;
+
+    private View accountTypeNode;
+
+    private AmountInput amountInput;
+
     private EntityEnumAdapter<CardIssuer> cardIssuerAdapter;
-    private EntityEnumAdapter<ElectronicPaymentType> electronicPaymentAdapter;
+
+    private View cardIssuerNode;
+
+    private View closingDayNode;
+
+    private EditText closingDayText;
+
     private ListAdapter currencyAdapter;
 
-    private Account account = new Account();
+    private Cursor currencyCursor;
+
+    private TextView currencyText;
+
+    private EntityEnumAdapter<ElectronicPaymentType> electronicPaymentAdapter;
+
+    private View electronicPaymentNode;
+
+    private CheckBox isIncludedIntoTotals;
+
+    private EditText issuerName;
+
+    private View issuerNode;
+
+    private View limitAmountView;
+
+    private AmountInput limitInput;
+
+    private EditText noteText;
+
+    private View numberNode;
+
+    private EditText numberText;
+
+    private View paymentDayNode;
+
+    private EditText paymentDayText;
+
+    private EditText sortOrderText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -128,7 +148,9 @@ public class AccountActivity extends AbstractActivity {
         setVisibility(cardIssuerNode, View.GONE);
 
         electronicPaymentAdapter = new EntityEnumAdapter<>(this, ElectronicPaymentType.values(), false);
-        electronicPaymentNode = x.addListNodeIcon(layout, R.id.electronic_payment_type, R.string.electronic_payment_type, R.string.card_issuer);
+        electronicPaymentNode = x
+                .addListNodeIcon(layout, R.id.electronic_payment_type, R.string.electronic_payment_type,
+                        R.string.card_issuer);
         setVisibility(electronicPaymentNode, View.GONE);
 
         issuerNode = x.addEditNode(layout, R.string.issuer, issuerName);
@@ -148,7 +170,8 @@ public class AccountActivity extends AbstractActivity {
         currencyAdapter = TransactionUtils.createCurrencyAdapter(this, currencyCursor);
 
         x.addEditNode(layout, R.string.title, accountTitle);
-        currencyText = x.addListNodePlus(layout, R.id.currency, R.id.currency_add, R.string.currency, R.string.select_currency);
+        currencyText = x.addListNodePlus(layout, R.id.currency, R.id.currency_add, R.string.currency,
+                R.string.select_currency);
 
         limitInput.setExpense();
         limitInput.disableIncomeExpenseButton();
@@ -260,42 +283,29 @@ public class AccountActivity extends AbstractActivity {
     }
 
     @Override
-    protected void onClick(View v, int id) {
-        switch (id) {
-            case R.id.is_included_into_totals:
-                isIncludedIntoTotals.performClick();
-                break;
-            case R.id.account_type:
-                x.selectPosition(this, R.id.account_type, R.string.account_type, accountTypeAdapter, AccountType.valueOf(account.type).ordinal());
-                break;
-            case R.id.card_issuer:
-                x.selectPosition(this, R.id.card_issuer, R.string.card_issuer, cardIssuerAdapter,
-                        account.cardIssuer != null ? CardIssuer.valueOf(account.cardIssuer).ordinal() : 0);
-                break;
-            case R.id.electronic_payment_type:
-                x.selectPosition(this, R.id.electronic_payment_type, R.string.electronic_payment_type, electronicPaymentAdapter,
-                        selectEnum(ElectronicPaymentType.class, account.cardIssuer, ElectronicPaymentType.PAYPAL).ordinal());
-                break;
-            case R.id.currency:
-                x.select(this, R.id.currency, R.string.currency, currencyCursor, currencyAdapter,
-                        "_id", account.currency != null ? account.currency.id : -1);
-                break;
-            case R.id.currency_add:
-                addNewCurrency();
-                break;
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            switch (requestCode) {
+                case NEW_CURRENCY_REQUEST:
+                    currencyCursor.requery();
+                    long currencyId = data.getLongExtra(CurrencyActivity.CURRENCY_ID_EXTRA, -1);
+                    if (currencyId != -1) {
+                        selectCurrency(currencyId);
+                    }
+                    break;
+            }
         }
     }
 
-    private void addNewCurrency() {
-        new CurrencySelector(this, db, currencyId -> {
-            if (currencyId == 0) {
-                Intent intent = new Intent(AccountActivity.this, CurrencyActivity.class);
-                startActivityForResult(intent, NEW_CURRENCY_REQUEST);
-            } else {
-                currencyCursor.requery();
-                selectCurrency(currencyId);
-            }
-        }).show();
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
     }
 
     @Override
@@ -325,59 +335,46 @@ public class AccountActivity extends AbstractActivity {
         }
     }
 
-    private void selectAccountType(AccountType type) {
-        ImageView icon = accountTypeNode.findViewById(R.id.icon);
-        icon.setImageResource(type.iconId);
-        TextView label = accountTypeNode.findViewById(R.id.label);
-        label.setText(type.titleId);
-
-        setVisibility(cardIssuerNode, type.isCard ? View.VISIBLE : View.GONE);
-        setVisibility(issuerNode, type.hasIssuer ? View.VISIBLE : View.GONE);
-        setVisibility(electronicPaymentNode, type.isElectronic ? View.VISIBLE : View.GONE);
-        setVisibility(numberNode, type.hasNumber ? View.VISIBLE : View.GONE);
-        setVisibility(closingDayNode, type.isCreditCard ? View.VISIBLE : View.GONE);
-        setVisibility(paymentDayNode, type.isCreditCard ? View.VISIBLE : View.GONE);
-
-        setVisibility(limitAmountView, type == AccountType.CREDIT_CARD ? View.VISIBLE : View.GONE);
-        account.type = type.name();
-        if (type.isCard) {
-            selectCardIssuer(selectEnum(CardIssuer.class, account.cardIssuer, CardIssuer.DEFAULT));
-        } else if (type.isElectronic) {
-            selectElectronicType(selectEnum(ElectronicPaymentType.class, account.cardIssuer, ElectronicPaymentType.PAYPAL));
-        } else {
-            account.cardIssuer = null;
+    @Override
+    protected void onClick(View v, int id) {
+        switch (id) {
+            case R.id.is_included_into_totals:
+                isIncludedIntoTotals.performClick();
+                break;
+            case R.id.account_type:
+                x.selectPosition(this, R.id.account_type, R.string.account_type, accountTypeAdapter,
+                        AccountType.valueOf(account.type).ordinal());
+                break;
+            case R.id.card_issuer:
+                x.selectPosition(this, R.id.card_issuer, R.string.card_issuer, cardIssuerAdapter,
+                        account.cardIssuer != null ? CardIssuer.valueOf(account.cardIssuer).ordinal() : 0);
+                break;
+            case R.id.electronic_payment_type:
+                x.selectPosition(this, R.id.electronic_payment_type, R.string.electronic_payment_type,
+                        electronicPaymentAdapter,
+                        selectEnum(ElectronicPaymentType.class, account.cardIssuer, ElectronicPaymentType.PAYPAL)
+                                .ordinal());
+                break;
+            case R.id.currency:
+                x.select(this, R.id.currency, R.string.currency, currencyCursor, currencyAdapter,
+                        "_id", account.currency != null ? account.currency.id : -1);
+                break;
+            case R.id.currency_add:
+                addNewCurrency();
+                break;
         }
     }
 
-    private void selectCardIssuer(CardIssuer issuer) {
-        updateNode(cardIssuerNode, issuer);
-        account.cardIssuer = issuer.name();
-    }
-
-    private void selectElectronicType(ElectronicPaymentType paymentType) {
-        updateNode(electronicPaymentNode, paymentType);
-        account.cardIssuer = paymentType.name();
-    }
-
-    private void updateNode(View note, EntityEnum enumItem) {
-        ImageView icon = note.findViewById(R.id.icon);
-        icon.setImageResource(enumItem.getIconId());
-        TextView label = note.findViewById(R.id.label);
-        label.setText(enumItem.getTitleId());
-    }
-
-    private void selectCurrency(long currencyId) {
-        Currency c = db.get(Currency.class, currencyId);
-        if (c != null) {
-            selectCurrency(c);
-        }
-    }
-
-    private void selectCurrency(Currency c) {
-        currencyText.setText(c.name);
-        amountInput.setCurrency(c);
-        limitInput.setCurrency(c);
-        account.currency = c;
+    private void addNewCurrency() {
+        new CurrencySelector(this, db, currencyId -> {
+            if (currencyId == 0) {
+                Intent intent = new Intent(AccountActivity.this, CurrencyActivity.class);
+                startActivityForResult(intent, NEW_CURRENCY_REQUEST);
+            } else {
+                currencyCursor.requery();
+                selectCurrency(currencyId);
+            }
+        }).show();
     }
 
     private void editAccount() {
@@ -404,30 +401,60 @@ public class AccountActivity extends AbstractActivity {
         noteText.setText(account.note);
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            switch (requestCode) {
-                case NEW_CURRENCY_REQUEST:
-                    currencyCursor.requery();
-                    long currencyId = data.getLongExtra(CurrencyActivity.CURRENCY_ID_EXTRA, -1);
-                    if (currencyId != -1) {
-                        selectCurrency(currencyId);
-                    }
-                    break;
-            }
+    private void selectAccountType(AccountType type) {
+        ImageView icon = accountTypeNode.findViewById(R.id.icon);
+        icon.setImageResource(type.iconId);
+        TextView label = accountTypeNode.findViewById(R.id.label);
+        label.setText(type.titleId);
+
+        setVisibility(cardIssuerNode, type.isCard ? View.VISIBLE : View.GONE);
+        setVisibility(issuerNode, type.hasIssuer ? View.VISIBLE : View.GONE);
+        setVisibility(electronicPaymentNode, type.isElectronic ? View.VISIBLE : View.GONE);
+        setVisibility(numberNode, type.hasNumber ? View.VISIBLE : View.GONE);
+        setVisibility(closingDayNode, type.isCreditCard ? View.VISIBLE : View.GONE);
+        setVisibility(paymentDayNode, type.isCreditCard ? View.VISIBLE : View.GONE);
+
+        setVisibility(limitAmountView, type == AccountType.CREDIT_CARD ? View.VISIBLE : View.GONE);
+        account.type = type.name();
+        if (type.isCard) {
+            selectCardIssuer(selectEnum(CardIssuer.class, account.cardIssuer, CardIssuer.DEFAULT));
+        } else if (type.isElectronic) {
+            selectElectronicType(
+                    selectEnum(ElectronicPaymentType.class, account.cardIssuer, ElectronicPaymentType.PAYPAL));
+        } else {
+            account.cardIssuer = null;
         }
     }
 
-    @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
+    private void selectCardIssuer(CardIssuer issuer) {
+        updateNode(cardIssuerNode, issuer);
+        account.cardIssuer = issuer.name();
     }
 
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
+    private void selectCurrency(Currency c) {
+        currencyText.setText(c.name);
+        amountInput.setCurrency(c);
+        limitInput.setCurrency(c);
+        account.currency = c;
+    }
+
+    private void selectCurrency(long currencyId) {
+        Currency c = db.get(Currency.class, currencyId);
+        if (c != null) {
+            selectCurrency(c);
+        }
+    }
+
+    private void selectElectronicType(ElectronicPaymentType paymentType) {
+        updateNode(electronicPaymentNode, paymentType);
+        account.cardIssuer = paymentType.name();
+    }
+
+    private void updateNode(View note, EntityEnum enumItem) {
+        ImageView icon = note.findViewById(R.id.icon);
+        icon.setImageResource(enumItem.getIconId());
+        TextView label = note.findViewById(R.id.label);
+        label.setText(enumItem.getTitleId());
     }
 
 }

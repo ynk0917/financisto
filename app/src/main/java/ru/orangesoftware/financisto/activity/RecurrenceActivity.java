@@ -10,6 +10,8 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.activity.UiUtils.applyTheme;
+
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
@@ -21,14 +23,11 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog;
 import com.wdullaer.materialdatetimepicker.time.TimePickerDialog;
-
 import java.text.DateFormat;
 import java.util.Calendar;
 import java.util.Date;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.datetime.DateUtils;
 import ru.orangesoftware.financisto.recur.DateRecurrenceIterator;
@@ -41,23 +40,27 @@ import ru.orangesoftware.financisto.recur.RecurrenceView;
 import ru.orangesoftware.financisto.recur.RecurrenceViewFactory;
 import ru.orangesoftware.financisto.utils.EnumUtils;
 
-import static ru.orangesoftware.financisto.activity.UiUtils.applyTheme;
-
 public class RecurrenceActivity extends AbstractActivity {
 
     public static final String RECURRENCE_PATTERN = "recurrence_pattern";
 
     private static final RecurrenceFrequency[] frequencies = RecurrenceFrequency.values();
+
     private static final RecurrenceUntil[] until = RecurrenceUntil.values();
 
     private LinearLayout layout;
-    private RecurrenceViewFactory viewFactory;
+
+    private Recurrence recurrence = Recurrence.noRecur();
+
+    private RecurrenceView recurrencePatternView;
+
+    private RecurrenceView recurrencePeriodView;
 
     private TextView startDateView;
+
     private TextView startTimeView;
-    private Recurrence recurrence = Recurrence.noRecur();
-    private RecurrenceView recurrencePatternView;
-    private RecurrenceView recurrencePeriodView;
+
+    private RecurrenceViewFactory viewFactory;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,7 +100,8 @@ public class RecurrenceActivity extends AbstractActivity {
                 setResult(RESULT_OK, data);
                 finish();
             } else {
-                if (recurrencePatternView.validateState() && (recurrencePeriodView == null || recurrencePeriodView.validateState())) {
+                if (recurrencePatternView.validateState() && (recurrencePeriodView == null || recurrencePeriodView
+                        .validateState())) {
                     Intent data = new Intent();
                     data.putExtra(RECURRENCE_PATTERN, stateToString());
                     setResult(RESULT_OK, data);
@@ -113,24 +117,10 @@ public class RecurrenceActivity extends AbstractActivity {
         });
     }
 
-    protected String stateToString() {
-        if (recurrencePatternView != null) {
-            recurrence.pattern = RecurrencePattern.parse(recurrencePatternView.stateToString());
-            if (recurrencePeriodView != null) {
-                recurrence.period = RecurrencePeriod.parse(recurrencePeriodView.stateToString());
-            } else {
-                recurrence.period = RecurrencePeriod.noEndDate();
-            }
-        } else {
-            recurrence.pattern = RecurrencePattern.noRecur();
-            recurrence.period = RecurrencePeriod.noEndDate();
-        }
-        return recurrence.stateToString();
-    }
-
     public void createNodes() {
         layout.removeAllViews();
-        x.addListNode(layout, R.id.recurrence_pattern, R.string.recurrence_pattern, getString(recurrence.pattern.frequency.titleId));
+        x.addListNode(layout, R.id.recurrence_pattern, R.string.recurrence_pattern,
+                getString(recurrence.pattern.frequency.titleId));
         if (recurrencePatternView != null) {
             recurrencePatternView.createNodes(layout);
             startDateView = x.addInfoNode(layout, R.id.start_date, R.string.recurrence_period_starts_on_date,
@@ -138,7 +128,8 @@ public class RecurrenceActivity extends AbstractActivity {
             startTimeView = x.addInfoNode(layout, R.id.start_time, R.string.recurrence_period_starts_on_time,
                     DateUtils.getTimeFormat(this).format(recurrence.getStartDate().getTime()));
             if (recurrence.pattern.frequency != RecurrenceFrequency.GEEKY) {
-                x.addListNode(layout, R.id.recurrence_period, R.string.recurrence_period, getString(recurrence.period.until.titleId));
+                x.addListNode(layout, R.id.recurrence_period, R.string.recurrence_period,
+                        getString(recurrence.period.until.titleId));
                 if (recurrencePeriodView != null) {
                     recurrencePeriodView.createNodes(layout);
                 }
@@ -148,16 +139,40 @@ public class RecurrenceActivity extends AbstractActivity {
     }
 
     @Override
+    public void onSelectedPos(int id, int selectedPos) {
+        switch (id) {
+            case R.id.recurrence_pattern:
+                RecurrenceFrequency newFrequency = frequencies[selectedPos];
+                if (recurrence.pattern.frequency != newFrequency) {
+                    recurrence.pattern = RecurrencePattern.empty(newFrequency);
+                    recurrencePatternView = viewFactory.create(recurrence.pattern);
+                    createNodes();
+                }
+                break;
+            case R.id.recurrence_period:
+                RecurrenceUntil newUntil = until[selectedPos];
+                if (recurrence.period.until != newUntil) {
+                    recurrence.period = RecurrencePeriod.empty(newUntil);
+                    recurrencePeriodView = viewFactory.create(newUntil);
+                    createNodes();
+                }
+                break;
+        }
+    }
+
+    @Override
     protected void onClick(View v, int id) {
         switch (id) {
             case R.id.recurrence_pattern: {
                 ArrayAdapter<String> adapter = EnumUtils.createDropDownAdapter(this, frequencies);
-                x.selectPosition(this, R.id.recurrence_pattern, R.string.recurrence_pattern, adapter, recurrence.pattern.frequency.ordinal());
+                x.selectPosition(this, R.id.recurrence_pattern, R.string.recurrence_pattern, adapter,
+                        recurrence.pattern.frequency.ordinal());
             }
             break;
             case R.id.recurrence_period: {
                 ArrayAdapter<String> adapter = EnumUtils.createDropDownAdapter(this, until);
-                x.selectPosition(this, R.id.recurrence_period, R.string.recurrence_period, adapter, recurrence.period.until.ordinal());
+                x.selectPosition(this, R.id.recurrence_period, R.string.recurrence_period, adapter,
+                        recurrence.period.until.ordinal());
             }
             break;
             case R.id.start_date: {
@@ -165,7 +180,8 @@ public class RecurrenceActivity extends AbstractActivity {
                 DatePickerDialog dialog = DatePickerDialog.newInstance(
                         (view, year, monthOfYear, dayOfMonth) -> {
                             recurrence.updateStartDate(year, monthOfYear, dayOfMonth);
-                            startDateView.setText(DateUtils.getMediumDateFormat(RecurrenceActivity.this).format(c.getTime()));
+                            startDateView.setText(
+                                    DateUtils.getMediumDateFormat(RecurrenceActivity.this).format(c.getTime()));
                         },
                         c.get(Calendar.YEAR),
                         c.get(Calendar.MONTH),
@@ -181,7 +197,8 @@ public class RecurrenceActivity extends AbstractActivity {
                 TimePickerDialog dialog = TimePickerDialog.newInstance(
                         (view, hourOfDay, minute, second) -> {
                             recurrence.updateStartTime(hourOfDay, minute, 0);
-                            startTimeView.setText(DateUtils.getTimeFormat(RecurrenceActivity.this).format(c.getTime()));
+                            startTimeView
+                                    .setText(DateUtils.getTimeFormat(RecurrenceActivity.this).format(c.getTime()));
                         },
                         c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), is24Format
                 );
@@ -215,33 +232,27 @@ public class RecurrenceActivity extends AbstractActivity {
                             .setPositiveButton(R.string.ok, (dialog, which) -> dialog.dismiss())
                             .show();
                 } catch (Exception ex) {
-                    Toast.makeText(this, ex.getClass().getSimpleName() + ":" + ex.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, ex.getClass().getSimpleName() + ":" + ex.getMessage(), Toast.LENGTH_SHORT)
+                            .show();
                 }
             }
             break;
         }
     }
 
-    @Override
-    public void onSelectedPos(int id, int selectedPos) {
-        switch (id) {
-            case R.id.recurrence_pattern:
-                RecurrenceFrequency newFrequency = frequencies[selectedPos];
-                if (recurrence.pattern.frequency != newFrequency) {
-                    recurrence.pattern = RecurrencePattern.empty(newFrequency);
-                    recurrencePatternView = viewFactory.create(recurrence.pattern);
-                    createNodes();
-                }
-                break;
-            case R.id.recurrence_period:
-                RecurrenceUntil newUntil = until[selectedPos];
-                if (recurrence.period.until != newUntil) {
-                    recurrence.period = RecurrencePeriod.empty(newUntil);
-                    recurrencePeriodView = viewFactory.create(newUntil);
-                    createNodes();
-                }
-                break;
+    protected String stateToString() {
+        if (recurrencePatternView != null) {
+            recurrence.pattern = RecurrencePattern.parse(recurrencePatternView.stateToString());
+            if (recurrencePeriodView != null) {
+                recurrence.period = RecurrencePeriod.parse(recurrencePeriodView.stateToString());
+            } else {
+                recurrence.period = RecurrencePeriod.noEndDate();
+            }
+        } else {
+            recurrence.pattern = RecurrencePattern.noRecur();
+            recurrence.period = RecurrencePeriod.noEndDate();
         }
+        return recurrence.stateToString();
     }
 
 }

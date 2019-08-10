@@ -54,16 +54,11 @@ public class CurrencyTest extends AbstractDbTest {
     public void test_should_reset_default_flag() {
         Currency c1 = CurrencyBuilder.withDb(db).name("USD").title("Dollar").symbol("$").makeDefault().create();
         assertTrue(db.get(Currency.class, c1.id).isDefault);
-        Currency c2 = CurrencyBuilder.withDb(db).name("SGD").title("Singapore Dollar").symbol("S$").makeDefault().create();
+        Currency c2 = CurrencyBuilder.withDb(db).name("SGD").title("Singapore Dollar").symbol("S$").makeDefault()
+                .create();
         //There can be only one!
         assertFalse(db.get(Currency.class, c1.id).isDefault);
         assertTrue(db.get(Currency.class, c2.id).isDefault);
-    }
-
-    public void test_should_return_home_currency() {
-        CurrencyBuilder.withDb(db).name("USD").title("Dollar").symbol("$").makeDefault().create();
-        CurrencyBuilder.withDb(db).name("SGD").title("Singapore Dollar").symbol("S$").makeDefault().create();
-        assertEquals("SGD", db.getHomeCurrency().name);
     }
 
     public void test_should_return_empty_currency_if_home_is_not_set() {
@@ -73,6 +68,12 @@ public class CurrencyTest extends AbstractDbTest {
 
     public void test_should_return_empty_currency_if_there_are_no_currencies() {
         assertEquals("", db.getHomeCurrency().name);
+    }
+
+    public void test_should_return_home_currency() {
+        CurrencyBuilder.withDb(db).name("USD").title("Dollar").symbol("$").makeDefault().create();
+        CurrencyBuilder.withDb(db).name("SGD").title("Singapore Dollar").symbol("S$").makeDefault().create();
+        assertEquals("SGD", db.getHomeCurrency().name);
     }
 
     public void test_should_set_home_currency_if_it_has_not_been_set_and_the_same_currency_is_used_in_all_accounts() {

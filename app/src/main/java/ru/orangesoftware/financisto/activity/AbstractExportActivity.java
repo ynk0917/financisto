@@ -4,7 +4,7 @@
  * are made available under the terms of the GNU Public License v2.0
  * which accompanies this distribution, and is available at
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * 
+ *
  * Contributors:
  *     Denis Solonenko - initial API and implementation
  ******************************************************************************/
@@ -17,56 +17,52 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
-import ru.orangesoftware.financisto.R;
-import ru.orangesoftware.financisto.filter.WhereFilter;
-import ru.orangesoftware.financisto.filter.DateTimeCriteria;
-import ru.orangesoftware.financisto.datetime.DateUtils;
-import ru.orangesoftware.financisto.utils.MyPreferences;
-import ru.orangesoftware.financisto.utils.PinProtection;
-import ru.orangesoftware.financisto.datetime.Period;
-import ru.orangesoftware.financisto.datetime.PeriodType;
-
 import java.text.DateFormat;
 import java.util.Date;
+import ru.orangesoftware.financisto.R;
+import ru.orangesoftware.financisto.datetime.DateUtils;
+import ru.orangesoftware.financisto.datetime.Period;
+import ru.orangesoftware.financisto.datetime.PeriodType;
+import ru.orangesoftware.financisto.filter.DateTimeCriteria;
+import ru.orangesoftware.financisto.filter.WhereFilter;
+import ru.orangesoftware.financisto.utils.MyPreferences;
+import ru.orangesoftware.financisto.utils.PinProtection;
 
 public abstract class AbstractExportActivity extends Activity {
 
-    private final int layoutId;
-	private final WhereFilter filter = WhereFilter.empty();
+    private Button bPeriod;
 
-	private Button bPeriod;
-	private DateFormat df;
+    private DateFormat df;
+
+    private final WhereFilter filter = WhereFilter.empty();
+
+    private final int layoutId;
 
     public AbstractExportActivity(int layoutId) {
         this.layoutId = layoutId;
     }
 
-	@Override
-	protected void attachBaseContext(Context base) {
-		super.attachBaseContext(MyPreferences.switchLocale(base));
-	}
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(layoutId);
 
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(layoutId);
-		
-		df = DateUtils.getShortDateFormat(this);
-		
-		filter.put(new DateTimeCriteria(PeriodType.THIS_MONTH));
-		
-		bPeriod = (Button)findViewById(R.id.bPeriod);
-		bPeriod.setOnClickListener(new OnClickListener(){
-			@Override
-			public void onClick(View arg0) {
-				Intent intent = new Intent(AbstractExportActivity.this, DateFilterActivity.class);
-				filter.toIntent(intent);
-				startActivityForResult(intent, 1);
-			}
-		});
+        df = DateUtils.getShortDateFormat(this);
 
-		Button bOk = (Button)findViewById(R.id.bOK);
-		bOk.setOnClickListener(new OnClickListener() {
+        filter.put(new DateTimeCriteria(PeriodType.THIS_MONTH));
+
+        bPeriod = (Button) findViewById(R.id.bPeriod);
+        bPeriod.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View arg0) {
+                Intent intent = new Intent(AbstractExportActivity.this, DateFilterActivity.class);
+                filter.toIntent(intent);
+                startActivityForResult(intent, 1);
+            }
+        });
+
+        Button bOk = (Button) findViewById(R.id.bOK);
+        bOk.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 savePreferences();
@@ -78,8 +74,8 @@ public abstract class AbstractExportActivity extends Activity {
             }
         });
 
-		Button bCancel = (Button)findViewById(R.id.bCancel);
-		bCancel.setOnClickListener(new OnClickListener() {
+        Button bCancel = (Button) findViewById(R.id.bCancel);
+        bCancel.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 setResult(RESULT_CANCELED);
@@ -89,66 +85,71 @@ public abstract class AbstractExportActivity extends Activity {
 
         internalOnCreate();
         restorePreferences();
-		updatePeriod();
-	}
+        updatePeriod();
+    }
 
-    protected abstract void savePreferences();
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == 1) {
+            if (resultCode == RESULT_FIRST_USER) {
+                filter.clearDateTime();
+            } else if (resultCode == RESULT_OK) {
+                String periodType = data.getStringExtra(DateFilterActivity.EXTRA_FILTER_PERIOD_TYPE);
+                PeriodType p = PeriodType.valueOf(periodType);
+                if (PeriodType.CUSTOM == p) {
+                    long periodFrom = data.getLongExtra(DateFilterActivity.EXTRA_FILTER_PERIOD_FROM, 0);
+                    long periodTo = data.getLongExtra(DateFilterActivity.EXTRA_FILTER_PERIOD_TO, 0);
+                    filter.put(new DateTimeCriteria(periodFrom, periodTo));
+                } else {
+                    filter.put(new DateTimeCriteria(p));
+                }
+            }
+            updatePeriod();
+        }
+    }
 
-    protected abstract void restorePreferences();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        PinProtection.unlock(this);
+    }
 
-    protected abstract void internalOnCreate();
-
-    protected abstract void updateResultIntentFromUi(Intent data);
+    @Override
+    protected void onPause() {
+        super.onPause();
+        PinProtection.lock(this);
+    }
 
     public void clearFilter() {
         filter.clear();
     }
 
-	private void updatePeriod() {
-		DateTimeCriteria c = filter.getDateTime();
-		if (c == null) {
-			bPeriod.setText(R.string.no_filter);
-		} else {
-			Period p = c.getPeriod();
-			if (p.isCustom()) {
-				long periodFrom = c.getLongValue1();
-				long periodTo = c.getLongValue2();
-				bPeriod.setText(df.format(new Date(periodFrom))+"-"+df.format(new Date(periodTo)));
-			} else {
-				bPeriod.setText(p.type.titleId);
-			}		
-		}
-	}
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
+    }
 
-	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		if (requestCode == 1) {
-			if (resultCode == RESULT_FIRST_USER) {
-				filter.clearDateTime();
-			} else if (resultCode == RESULT_OK) {
-				String periodType = data.getStringExtra(DateFilterActivity.EXTRA_FILTER_PERIOD_TYPE);
-				PeriodType p = PeriodType.valueOf(periodType);
-				if (PeriodType.CUSTOM == p) {
-					long periodFrom = data.getLongExtra(DateFilterActivity.EXTRA_FILTER_PERIOD_FROM, 0);
-					long periodTo = data.getLongExtra(DateFilterActivity.EXTRA_FILTER_PERIOD_TO, 0);
-					filter.put(new DateTimeCriteria(periodFrom, periodTo));
-				} else {
-					filter.put(new DateTimeCriteria(p));
-				}			
-			}
-			updatePeriod();
-		}
-	}
-	
-	@Override
-	protected void onPause() {
-		super.onPause();
-		PinProtection.lock(this);
-	}
+    protected abstract void internalOnCreate();
 
-	@Override
-	protected void onResume() {
-		super.onResume();
-		PinProtection.unlock(this);
-	}	
+    protected abstract void restorePreferences();
+
+    protected abstract void savePreferences();
+
+    protected abstract void updateResultIntentFromUi(Intent data);
+
+    private void updatePeriod() {
+        DateTimeCriteria c = filter.getDateTime();
+        if (c == null) {
+            bPeriod.setText(R.string.no_filter);
+        } else {
+            Period p = c.getPeriod();
+            if (p.isCustom()) {
+                long periodFrom = c.getLongValue1();
+                long periodTo = c.getLongValue2();
+                bPeriod.setText(df.format(new Date(periodFrom)) + "-" + df.format(new Date(periodTo)));
+            } else {
+                bPeriod.setText(p.type.titleId);
+            }
+        }
+    }
 }

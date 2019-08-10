@@ -1,9 +1,9 @@
 package ru.orangesoftware.financisto.utils;
 
+import static android.support.test.InstrumentationRegistry.getInstrumentation;
+
 import java.io.InputStream;
 import java.util.Scanner;
-
-import static android.support.test.InstrumentationRegistry.getInstrumentation;
 
 public class FileUtils {
 

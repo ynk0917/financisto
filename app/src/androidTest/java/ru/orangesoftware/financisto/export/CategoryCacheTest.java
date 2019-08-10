@@ -8,15 +8,14 @@
 
 package ru.orangesoftware.financisto.export;
 
-import ru.orangesoftware.financisto.model.Category;
-import ru.orangesoftware.financisto.model.CategoryTree;
-import ru.orangesoftware.financisto.test.CategoryBuilder;
+import static ru.orangesoftware.financisto.export.CategoryCache.extractCategoryName;
 
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import static ru.orangesoftware.financisto.export.CategoryCache.extractCategoryName;
+import ru.orangesoftware.financisto.model.Category;
+import ru.orangesoftware.financisto.model.CategoryTree;
+import ru.orangesoftware.financisto.test.CategoryBuilder;
 
 /**
  * Created by IntelliJ IDEA.
@@ -26,13 +25,6 @@ import static ru.orangesoftware.financisto.export.CategoryCache.extractCategoryN
 public class CategoryCacheTest extends AbstractImportExportTest {
 
     CategoryCache cache = new CategoryCache();
-
-    public void test_should_split_category_name() {
-        assertEquals("P1", extractCategoryName("P1"));
-        assertEquals("P1:c1", extractCategoryName("P1:c1"));
-        assertEquals("P1", extractCategoryName("P1/C2"));
-        assertEquals("P1:c1", extractCategoryName("P1:c1/C2"));
-    }
 
     public void test_should_import_categories() throws Exception {
         //given
@@ -143,6 +135,13 @@ public class CategoryCacheTest extends AbstractImportExportTest {
         assertEquals(0, noCategory.left);
         assertEquals(21, noCategory.right);
 
+    }
+
+    public void test_should_split_category_name() {
+        assertEquals("P1", extractCategoryName("P1"));
+        assertEquals("P1:c1", extractCategoryName("P1:c1"));
+        assertEquals("P1", extractCategoryName("P1/C2"));
+        assertEquals("P1:c1", extractCategoryName("P1:c1/C2"));
     }
 
 }

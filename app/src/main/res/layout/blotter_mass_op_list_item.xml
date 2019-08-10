@@ -101,6 +101,6 @@
         android:layout_alignParentRight="true"
         android:maxLines="1"
         android:paddingRight="10dp"
-        android:text="right_center"/>
+        android:text="right_center" />
 
 </RelativeLayout>

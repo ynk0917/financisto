@@ -6,7 +6,6 @@ import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.db.DatabaseHelper;
 import ru.orangesoftware.financisto.model.Account;
@@ -20,14 +19,25 @@ import ru.orangesoftware.financisto.widget.RateLayoutView;
  */
 public class SplitTransferActivity extends AbstractSplitActivity {
 
-    private RateLayoutView rateView;
+    protected ListAdapter accountAdapter;
+
+    protected Cursor accountCursor;
 
     protected TextView accountText;
-    protected Cursor accountCursor;
-    protected ListAdapter accountAdapter;
+
+    private RateLayoutView rateView;
 
     public SplitTransferActivity() {
         super(R.layout.split_fixed);
+    }
+
+    @Override
+    public void onSelectedId(int id, long selectedId) {
+        switch (id) {
+            case R.id.account:
+                selectToAccount(selectedId);
+                break;
+        }
     }
 
     @Override
@@ -35,7 +45,8 @@ public class SplitTransferActivity extends AbstractSplitActivity {
         accountText = x.addListNode(layout, R.id.account, R.string.account, R.string.select_to_account);
         rateView = new RateLayoutView(this, x, layout);
         rateView.createTransferUI();
-        rateView.setAmountFromChangeListener((oldAmount, newAmount) -> setUnsplitAmount(split.unsplitAmount - newAmount));
+        rateView.setAmountFromChangeListener(
+                (oldAmount, newAmount) -> setUnsplitAmount(split.unsplitAmount - newAmount));
     }
 
     @Override
@@ -46,12 +57,12 @@ public class SplitTransferActivity extends AbstractSplitActivity {
     }
 
     @Override
-    protected void updateUI() {
-        super.updateUI();
-        selectFromAccount(split.fromAccountId);
-        selectToAccount(split.toAccountId);
-        setFromAmount(split.fromAmount);
-        setToAmount(split.toAmount);
+    protected void onClick(View v, int id) {
+        super.onClick(v, id);
+        if (id == R.id.account) {
+            x.select(this, R.id.account, R.string.account_to, accountCursor, accountAdapter,
+                    DatabaseHelper.AccountColumns.ID, split.toAccountId);
+        }
     }
 
     @Override
@@ -64,6 +75,15 @@ public class SplitTransferActivity extends AbstractSplitActivity {
             return false;
         }
         return true;
+    }
+
+    @Override
+    protected void updateUI() {
+        super.updateUI();
+        selectFromAccount(split.fromAccountId);
+        selectToAccount(split.toAccountId);
+        setFromAmount(split.fromAmount);
+        setToAmount(split.toAmount);
     }
 
     private void selectFromAccount(long accountId) {
@@ -88,24 +108,6 @@ public class SplitTransferActivity extends AbstractSplitActivity {
 
     private void setToAmount(long amount) {
         rateView.setToAmount(amount);
-    }
-
-    @Override
-    protected void onClick(View v, int id) {
-        super.onClick(v, id);
-        if (id == R.id.account) {
-            x.select(this, R.id.account, R.string.account_to, accountCursor, accountAdapter,
-                    DatabaseHelper.AccountColumns.ID, split.toAccountId);
-        }
-    }
-
-    @Override
-    public void onSelectedId(int id, long selectedId) {
-        switch(id) {
-            case R.id.account:
-                selectToAccount(selectedId);
-                break;
-        }
     }
 
 }

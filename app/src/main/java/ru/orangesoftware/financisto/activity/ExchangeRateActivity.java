@@ -8,6 +8,8 @@
 
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.utils.Utils.formatRateDate;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -15,35 +17,36 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog;
-
+import java.util.Calendar;
 import ru.orangesoftware.financisto.R;
+import ru.orangesoftware.financisto.datetime.DateUtils;
 import ru.orangesoftware.financisto.model.Currency;
 import ru.orangesoftware.financisto.rates.ExchangeRate;
-import ru.orangesoftware.financisto.datetime.DateUtils;
-import ru.orangesoftware.financisto.widget.AmountInput;
 import ru.orangesoftware.financisto.widget.RateNode;
 import ru.orangesoftware.financisto.widget.RateNodeOwner;
-
-import java.util.Calendar;
-
-import static ru.orangesoftware.financisto.utils.Utils.formatRateDate;
 
 public class ExchangeRateActivity extends AbstractActivity implements RateNodeOwner {
 
     public static final String RATE_DATE = "RATE_DATE";
+
     public static final String TO_CURRENCY_ID = "TO_CURRENCY_ID";
+
     public static final String FROM_CURRENCY_ID = "FROM_CURRENCY_ID";
 
-    private Currency fromCurrency;
-    private Currency toCurrency;
-    private long originalDate;
     private long date;
-    private double rate = 1;
 
     private TextView dateNode;
+
+    private Currency fromCurrency;
+
+    private long originalDate;
+
+    private double rate = 1;
+
     private RateNode rateNode;
+
+    private Currency toCurrency;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,6 +82,50 @@ public class ExchangeRateActivity extends AbstractActivity implements RateNodeOw
         }
     }
 
+    @Override
+    public Activity getActivity() {
+        return this;
+    }
+
+    @Override
+    public Currency getCurrencyFrom() {
+        return fromCurrency;
+    }
+
+    @Override
+    public Currency getCurrencyTo() {
+        return toCurrency;
+    }
+
+    @Override
+    public void onAfterRateDownload() {
+        rateNode.enableAll();
+    }
+
+    @Override
+    public void onBeforeRateDownload() {
+        rateNode.disableAll();
+    }
+
+    @Override
+    public void onRateChanged() {
+        rateNode.updateRateInfo();
+    }
+
+    @Override
+    public void onSuccessfulRateDownload() {
+        rateNode.updateRateInfo();
+    }
+
+    @Override
+    protected void onClick(View v, int id) {
+        switch (id) {
+            case R.id.date:
+                editDate();
+                break;
+        }
+    }
+
     private ExchangeRate createRateFromUI() {
         ExchangeRate rate = new ExchangeRate();
         rate.fromCurrencyId = fromCurrency.id;
@@ -86,6 +133,22 @@ public class ExchangeRateActivity extends AbstractActivity implements RateNodeOw
         rate.date = date;
         rate.rate = rateNode.getRate();
         return rate;
+    }
+
+    private void editDate() {
+        final Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(date);
+        DatePickerDialog datePickerDialog = DatePickerDialog.newInstance(
+                (view, year, monthOfYear, dayOfMonth) -> {
+                    c.set(year, monthOfYear, dayOfMonth);
+                    date = c.getTimeInMillis();
+                    dateNode.setText(formatRateDate(ExchangeRateActivity.this, date));
+                },
+                c.get(Calendar.YEAR),
+                c.get(Calendar.MONTH),
+                c.get(Calendar.DAY_OF_MONTH)
+        );
+        datePickerDialog.show(getFragmentManager(), "DatePickerDialog");
     }
 
     private void updateUI(LinearLayout layout) {
@@ -124,66 +187,6 @@ public class ExchangeRateActivity extends AbstractActivity implements RateNodeOw
         }
 
         return true;
-    }
-
-    @Override
-    protected void onClick(View v, int id) {
-        switch (id) {
-            case R.id.date:
-                editDate();
-                break;
-        }
-    }
-
-    private void editDate() {
-        final Calendar c = Calendar.getInstance();
-        c.setTimeInMillis(date);
-        DatePickerDialog datePickerDialog = DatePickerDialog.newInstance(
-                (view, year, monthOfYear, dayOfMonth) -> {
-                    c.set(year, monthOfYear, dayOfMonth);
-                    date = c.getTimeInMillis();
-                    dateNode.setText(formatRateDate(ExchangeRateActivity.this, date));
-                },
-                c.get(Calendar.YEAR),
-                c.get(Calendar.MONTH),
-                c.get(Calendar.DAY_OF_MONTH)
-        );
-        datePickerDialog.show(getFragmentManager(), "DatePickerDialog");
-    }
-
-    @Override
-    public void onBeforeRateDownload() {
-        rateNode.disableAll();
-    }
-
-    @Override
-    public void onAfterRateDownload() {
-        rateNode.enableAll();
-    }
-
-    @Override
-    public void onSuccessfulRateDownload() {
-        rateNode.updateRateInfo();
-    }
-
-    @Override
-    public void onRateChanged() {
-        rateNode.updateRateInfo();
-    }
-
-    @Override
-    public Activity getActivity() {
-        return this;
-    }
-
-    @Override
-    public Currency getCurrencyFrom() {
-        return fromCurrency;
-    }
-
-    @Override
-    public Currency getCurrencyTo() {
-        return toCurrency;
     }
 
 }

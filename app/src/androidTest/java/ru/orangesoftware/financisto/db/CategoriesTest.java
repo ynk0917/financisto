@@ -8,13 +8,12 @@
 
 package ru.orangesoftware.financisto.db;
 
+import java.util.Collections;
+import java.util.Map;
 import ru.orangesoftware.financisto.model.Attribute;
 import ru.orangesoftware.financisto.model.Category;
 import ru.orangesoftware.financisto.model.CategoryTree;
 import ru.orangesoftware.financisto.test.CategoryBuilder;
-
-import java.util.Collections;
-import java.util.Map;
 
 /**
  * Created by IntelliJ IDEA.
@@ -184,16 +183,16 @@ public class CategoriesTest extends AbstractDbTest {
         assertEquals(Category.TYPE_INCOME, aa1.type);
     }
 
-    private Category createParentCategory(String title) {
-        Category c = new Category();
-        c.title = title;
-        return c;
-    }
-
     private Category createChildCategory(Category parent, String title) {
         Category c = new Category();
         c.title = title;
         c.parent = parent;
+        return c;
+    }
+
+    private Category createParentCategory(String title) {
+        Category c = new Category();
+        c.title = title;
         return c;
     }
 

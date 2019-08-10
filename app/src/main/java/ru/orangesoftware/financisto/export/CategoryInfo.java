@@ -19,6 +19,10 @@ public class CategoryInfo {
 
     public static final String SEPARATOR = ":";
 
+    public boolean isIncome;
+
+    public String name;
+
     public static String buildName(Category c) {
         StringBuilder sb = new StringBuilder();
         sb.append(c.title);
@@ -29,10 +33,8 @@ public class CategoryInfo {
         return sb.toString();
     }
 
-    public String name;
-    public boolean isIncome;
-
-    public CategoryInfo() {}
+    public CategoryInfo() {
+    }
 
     public CategoryInfo(String name, boolean income) {
         this.name = name;
@@ -41,8 +43,12 @@ public class CategoryInfo {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         CategoryInfo that = (CategoryInfo) o;
 
@@ -56,7 +62,7 @@ public class CategoryInfo {
 
     @Override
     public String toString() {
-        return "{"+name+"("+(isIncome?"I":"E")+"}";
+        return "{" + name + "(" + (isIncome ? "I" : "E") + "}";
     }
 
 }

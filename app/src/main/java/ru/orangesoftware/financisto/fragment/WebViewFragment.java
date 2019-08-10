@@ -4,6 +4,7 @@ import android.app.Fragment;
 import android.os.Bundle;
 
 public class WebViewFragment extends android.webkit.WebViewFragment {
+
     private static final String EXTRA_URL = "url";
 
     public static Fragment newInstance(String url) {

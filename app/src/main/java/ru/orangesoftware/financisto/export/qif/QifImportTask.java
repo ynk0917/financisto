@@ -11,14 +11,10 @@ package ru.orangesoftware.financisto.export.qif;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.os.Handler;
 import android.util.Log;
-
 import ru.orangesoftware.financisto.R;
-import ru.orangesoftware.financisto.activity.MainActivity;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.export.ImportExportAsyncTask;
-import ru.orangesoftware.financisto.export.ImportExportAsyncTaskListener;
 import ru.orangesoftware.financisto.export.ImportExportException;
 
 /**
@@ -36,6 +32,11 @@ public class QifImportTask extends ImportExportAsyncTask {
     }
 
     @Override
+    protected String getSuccessMessage(Object result) {
+        return context.getString(R.string.qif_import_success);
+    }
+
+    @Override
     protected Object work(Context context, DatabaseAdapter db, String... params) throws Exception {
         try {
             QifImport qifImport = new QifImport(context, db, options);
@@ -45,11 +46,6 @@ public class QifImportTask extends ImportExportAsyncTask {
             Log.e("Financisto", "Qif import error", e);
             throw new ImportExportException(R.string.qif_import_error);
         }
-    }
-
-    @Override
-    protected String getSuccessMessage(Object result) {
-        return context.getString(R.string.qif_import_success);
     }
 
 }

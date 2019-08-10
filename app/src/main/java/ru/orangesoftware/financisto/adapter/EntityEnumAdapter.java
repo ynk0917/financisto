@@ -10,9 +10,6 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.adapter;
 
-import ru.orangesoftware.financisto.R;
-import ru.orangesoftware.financisto.utils.EntityEnum;
-
 import android.content.Context;
 import android.support.v4.content.ContextCompat;
 import android.view.LayoutInflater;
@@ -21,13 +18,18 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
+import ru.orangesoftware.financisto.R;
+import ru.orangesoftware.financisto.utils.EntityEnum;
 
 public class EntityEnumAdapter<T extends EntityEnum> extends BaseAdapter {
 
     private final Context context;
-    private final T[] values;
+
     private final LayoutInflater inflater;
+
     private final boolean tint;
+
+    private final T[] values;
 
     public EntityEnumAdapter(Context context, T[] values, boolean tint) {
         this.values = values;

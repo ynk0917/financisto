@@ -1,12 +1,11 @@
 package ru.orangesoftware.financisto.model;
 
+import java.util.Map;
 import ru.orangesoftware.financisto.db.AbstractDbTest;
 import ru.orangesoftware.financisto.test.AccountBuilder;
 import ru.orangesoftware.financisto.test.CategoryBuilder;
 import ru.orangesoftware.financisto.test.DateTime;
 import ru.orangesoftware.financisto.test.TransactionBuilder;
-
-import java.util.Map;
 
 /**
  * Created by IntelliJ IDEA.
@@ -15,11 +14,16 @@ import java.util.Map;
  */
 public class BudgetTest extends AbstractDbTest {
 
-    Budget budgetOne;
     Account account;
-    Project project;
-    Map<String, Category> categoriesMap;
+
+    Budget budgetOne;
+
     Map<Long, Category> categories;
+
+    Map<String, Category> categoriesMap;
+
+    Project project;
+
     Map<Long, Project> projects;
 
     @Override
@@ -35,37 +39,28 @@ public class BudgetTest extends AbstractDbTest {
         createBudget();
     }
 
-    private void createBudget() {
-        budgetOne = new Budget();
-        budgetOne.currency = account.currency;
-        budgetOne.amount = 1000;
-        budgetOne.categories = String.valueOf(categoriesMap.get("A").id);
-        budgetOne.projects = String.valueOf(project.id);
-        budgetOne.expanded = true;
-        budgetOne.includeSubcategories = true;
-        budgetOne.startDate = DateTime.date(2011, 4, 1).atMidnight().asLong();
-        budgetOne.endDate = DateTime.date(2011, 4, 30).at(23, 59, 59, 999).asLong();
-        db.saveOrUpdate(budgetOne);
-    }
-
     public void test_should_calculate_budget_correctly_with_regular_transactions() {
         // zero initially
         long spent = db.fetchBudgetBalance(categories, projects, budgetOne);
         assertEquals(0, spent);
         // yes, should affect budget
-        TransactionBuilder.withDb(db).account(account).dateTime(DateTime.date(2011, 4, 1).atNoon()).amount(-100).category(categoriesMap.get("A")).create();
+        TransactionBuilder.withDb(db).account(account).dateTime(DateTime.date(2011, 4, 1).atNoon()).amount(-100)
+                .category(categoriesMap.get("A")).create();
         spent = db.fetchBudgetBalance(categories, projects, budgetOne);
         assertEquals(-100, spent);
         // no, period is out
-        TransactionBuilder.withDb(db).account(account).dateTime(DateTime.date(2011, 5, 1).atNoon()).amount(-200).category(categoriesMap.get("A")).create();
+        TransactionBuilder.withDb(db).account(account).dateTime(DateTime.date(2011, 5, 1).atNoon()).amount(-200)
+                .category(categoriesMap.get("A")).create();
         spent = db.fetchBudgetBalance(categories, projects, budgetOne);
         assertEquals(-100, spent);
         // no, category is out
-        TransactionBuilder.withDb(db).account(account).dateTime(DateTime.date(2011, 4, 1).atNoon()).amount(-200).category(categoriesMap.get("B")).create();
+        TransactionBuilder.withDb(db).account(account).dateTime(DateTime.date(2011, 4, 1).atNoon()).amount(-200)
+                .category(categoriesMap.get("B")).create();
         spent = db.fetchBudgetBalance(categories, projects, budgetOne);
         assertEquals(-100, spent);
         // yes, child category
-        TransactionBuilder.withDb(db).account(account).dateTime(DateTime.date(2011, 4, 2).atNoon()).amount(-200).category(categoriesMap.get("A1")).create();
+        TransactionBuilder.withDb(db).account(account).dateTime(DateTime.date(2011, 4, 2).atNoon()).amount(-200)
+                .category(categoriesMap.get("A1")).create();
         spent = db.fetchBudgetBalance(categories, projects, budgetOne);
         assertEquals(-300, spent);
     }
@@ -92,6 +87,19 @@ public class BudgetTest extends AbstractDbTest {
 
     public void test_should_calculate_budget_total() {
 
+    }
+
+    private void createBudget() {
+        budgetOne = new Budget();
+        budgetOne.currency = account.currency;
+        budgetOne.amount = 1000;
+        budgetOne.categories = String.valueOf(categoriesMap.get("A").id);
+        budgetOne.projects = String.valueOf(project.id);
+        budgetOne.expanded = true;
+        budgetOne.includeSubcategories = true;
+        budgetOne.startDate = DateTime.date(2011, 4, 1).atMidnight().asLong();
+        budgetOne.endDate = DateTime.date(2011, 4, 30).at(23, 59, 59, 999).asLong();
+        db.saveOrUpdate(budgetOne);
     }
 
 }

@@ -11,17 +11,14 @@ package ru.orangesoftware.financisto.export.dropbox;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
-
+import java.util.List;
 import ru.orangesoftware.financisto.R;
-import ru.orangesoftware.financisto.activity.MenuListItem;
 import ru.orangesoftware.financisto.bus.GreenRobotBus_;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.export.ImportExportAsyncTask;
 import ru.orangesoftware.financisto.export.ImportExportAsyncTaskListener;
 import ru.orangesoftware.financisto.export.ImportExportException;
 import ru.orangesoftware.financisto.export.drive.DropboxFileList;
-
-import java.util.List;
 
 /**
  * Created with IntelliJ IDEA.
@@ -43,6 +40,11 @@ public class DropboxListFilesTask extends ImportExportAsyncTask {
     }
 
     @Override
+    protected String getSuccessMessage(Object result) {
+        return null;
+    }
+
+    @Override
     protected Object work(Context context, DatabaseAdapter db, String... params) throws Exception {
         try {
             Dropbox dropbox = new Dropbox(context);
@@ -51,11 +53,6 @@ public class DropboxListFilesTask extends ImportExportAsyncTask {
         } catch (Exception e) {
             throw new ImportExportException(R.string.dropbox_error);
         }
-    }
-
-    @Override
-    protected String getSuccessMessage(Object result) {
-        return null;
     }
 
 }

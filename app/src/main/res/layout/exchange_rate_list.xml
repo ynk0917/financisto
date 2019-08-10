@@ -25,6 +25,7 @@
         android:text="@string/no_exchange_rates" />
 
     <LinearLayout style="@style/BottomBar">
+
         <Spinner
             android:id="@+id/spinnerFromCurrency"
             android:layout_width="wrap_content"

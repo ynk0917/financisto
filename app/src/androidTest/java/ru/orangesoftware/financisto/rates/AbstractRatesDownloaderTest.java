@@ -9,15 +9,14 @@
 package ru.orangesoftware.financisto.rates;
 
 import android.test.InstrumentationTestCase;
-import org.apache.http.conn.ConnectTimeoutException;
-import ru.orangesoftware.financisto.http.FakeHttpClientWrapper;
-import ru.orangesoftware.financisto.model.Currency;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.http.conn.ConnectTimeoutException;
+import ru.orangesoftware.financisto.http.FakeHttpClientWrapper;
+import ru.orangesoftware.financisto.model.Currency;
 
 /**
  * Created with IntelliJ IDEA.
@@ -27,15 +26,29 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public abstract class AbstractRatesDownloaderTest extends InstrumentationTestCase {
 
-    private final Map<String, Currency> nameToCurrency = new HashMap<String, Currency>();
-    private final AtomicLong counter = new AtomicLong(1);
-
     FakeHttpClientWrapper client = new FakeHttpClientWrapper();
 
-    abstract ExchangeRateProvider service();
+    private final AtomicLong counter = new AtomicLong(1);
 
-    ExchangeRate downloadRate(String from, String to) {
-        return service().getRate(currency(from), currency(to));
+    private final Map<String, Currency> nameToCurrency = new HashMap<String, Currency>();
+
+    void assertRate(ExchangeRate exchangeRate, String fromCurrency, String toCurrency) {
+        assertEquals("Expected " + fromCurrency, currency(fromCurrency).id, exchangeRate.fromCurrencyId);
+        assertEquals("Expected " + toCurrency, currency(toCurrency).id, exchangeRate.toCurrencyId);
+    }
+
+    void assertRate(ExchangeRate exchangeRate, String fromCurrency, String toCurrency, double rate, long date) {
+        assertRate(exchangeRate, fromCurrency, toCurrency);
+        assertEquals(rate, exchangeRate.rate, 0.000001);
+        assertEquals(date, exchangeRate.date);
+    }
+
+    List<Currency> currencies(String... currencies) {
+        List<Currency> list = new ArrayList<Currency>();
+        for (String name : currencies) {
+            list.add(currency(name));
+        }
+        return list;
     }
 
     Currency currency(String name) {
@@ -49,32 +62,19 @@ public abstract class AbstractRatesDownloaderTest extends InstrumentationTestCas
         return c;
     }
 
-    List<Currency> currencies(String... currencies) {
-        List<Currency> list = new ArrayList<Currency>();
-        for (String name : currencies) {
-            list.add(currency(name));
-        }
-        return list;
-    }
-
-    void givenResponseFromWebService(String url, String response) {
-        client.givenResponse(url, response);
+    ExchangeRate downloadRate(String from, String to) {
+        return service().getRate(currency(from), currency(to));
     }
 
     void givenExceptionWhileRequestingWebService() {
         client.error = new ConnectTimeoutException("Timeout");
     }
 
-    void assertRate(ExchangeRate exchangeRate, String fromCurrency, String toCurrency) {
-        assertEquals("Expected "+fromCurrency, currency(fromCurrency).id, exchangeRate.fromCurrencyId);
-        assertEquals("Expected "+toCurrency, currency(toCurrency).id, exchangeRate.toCurrencyId);
+    void givenResponseFromWebService(String url, String response) {
+        client.givenResponse(url, response);
     }
 
-    void assertRate(ExchangeRate exchangeRate, String fromCurrency, String toCurrency, double rate, long date) {
-        assertRate(exchangeRate, fromCurrency, toCurrency);
-        assertEquals(rate, exchangeRate.rate, 0.000001);
-        assertEquals(date, exchangeRate.date);
-    }
+    abstract ExchangeRateProvider service();
 
     static String anyUrl() {
         return "*";

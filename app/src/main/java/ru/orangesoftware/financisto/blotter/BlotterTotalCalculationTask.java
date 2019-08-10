@@ -16,14 +16,15 @@ import ru.orangesoftware.financisto.model.Total;
 
 public class BlotterTotalCalculationTask extends TotalCalculationTask {
 
-	private final DatabaseAdapter db;
-	private final WhereFilter filter;
+    private final DatabaseAdapter db;
 
-	public BlotterTotalCalculationTask(Context context, DatabaseAdapter db, WhereFilter filter, TextView totalText) {
+    private final WhereFilter filter;
+
+    public BlotterTotalCalculationTask(Context context, DatabaseAdapter db, WhereFilter filter, TextView totalText) {
         super(context, totalText);
-		this.db = db;
-		this.filter = filter;
-	}
+        this.db = db;
+        this.filter = filter;
+    }
 
     @Override
     public Total getTotalInHomeCurrency() {

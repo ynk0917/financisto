@@ -12,6 +12,7 @@ import ru.orangesoftware.financisto.model.Transaction;
 public class TransferBuilder {
 
     private final DatabaseAdapter db;
+
     private final Transaction t = new Transaction();
 
     public static TransferBuilder withDb(DatabaseAdapter db) {
@@ -20,6 +21,17 @@ public class TransferBuilder {
 
     private TransferBuilder(DatabaseAdapter db) {
         this.db = db;
+    }
+
+    public Transaction create() {
+        long id = db.insertOrUpdate(t, null);
+        t.id = id;
+        return t;
+    }
+
+    public TransferBuilder dateTime(DateTime dateTime) {
+        t.dateTime = dateTime.asLong();
+        return this;
     }
 
     public TransferBuilder fromAccount(Account a) {
@@ -32,18 +44,8 @@ public class TransferBuilder {
         return this;
     }
 
-    public TransferBuilder toAccount(Account a) {
-        t.toAccountId = a.id;
-        return this;
-    }
-
-    public TransferBuilder toAmount(long amount) {
-        t.toAmount = amount;
-        return this;
-    }
-
-    public TransferBuilder dateTime(DateTime dateTime) {
-        t.dateTime = dateTime.asLong();
+    public TransferBuilder note(String note) {
+        t.note = note;
         return this;
     }
 
@@ -59,15 +61,14 @@ public class TransferBuilder {
         return this;
     }
 
-    public TransferBuilder note(String note) {
-        t.note = note;
+    public TransferBuilder toAccount(Account a) {
+        t.toAccountId = a.id;
         return this;
     }
 
-    public Transaction create() {
-        long id = db.insertOrUpdate(t, null);
-        t.id = id;
-        return t;
+    public TransferBuilder toAmount(long amount) {
+        t.toAmount = amount;
+        return this;
     }
 
 }

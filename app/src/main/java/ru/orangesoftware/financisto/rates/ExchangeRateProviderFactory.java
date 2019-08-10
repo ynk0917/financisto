@@ -9,7 +9,6 @@
 package ru.orangesoftware.financisto.rates;
 
 import android.content.SharedPreferences;
-
 import okhttp3.OkHttpClient;
 import ru.orangesoftware.financisto.http.HttpClientWrapper;
 
@@ -21,20 +20,20 @@ import ru.orangesoftware.financisto.http.HttpClientWrapper;
  */
 public enum ExchangeRateProviderFactory {
 
-    webservicex(){
+    webservicex() {
         @Override
         public ExchangeRateProvider createProvider(SharedPreferences sharedPreferences) {
             return new WebserviceXConversionRateDownloader(createDefaultWrapper(), System.currentTimeMillis());
         }
     },
-    openexchangerates(){
+    openexchangerates() {
         @Override
         public ExchangeRateProvider createProvider(SharedPreferences sharedPreferences) {
             String appId = sharedPreferences.getString("openexchangerates_app_id", "");
             return new OpenExchangeRatesDownloader(createDefaultWrapper(), appId);
         }
     },
-    freeCurrency(){
+    freeCurrency() {
         @Override
         public ExchangeRateProvider createProvider(SharedPreferences sharedPreferences) {
             return new FreeCurrencyRateDownloader(createDefaultWrapper(), System.currentTimeMillis());

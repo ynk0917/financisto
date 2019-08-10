@@ -12,7 +12,6 @@ import android.app.Activity;
 import android.os.AsyncTask;
 import android.view.View;
 import android.widget.TextView;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.utils.IntegrityCheck;
 

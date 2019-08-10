@@ -4,7 +4,7 @@
  * are made available under the terms of the GNU Public License v2.0
  * which accompanies this distribution, and is available at
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * 
+ *
  * Contributors:
  *     Denis Solonenko - initial API and implementation
  ******************************************************************************/
@@ -13,29 +13,32 @@ package ru.orangesoftware.financisto.export.qif;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import ru.orangesoftware.financisto.blotter.BlotterFilter;
-import ru.orangesoftware.financisto.filter.WhereFilter;
-import ru.orangesoftware.financisto.db.DatabaseAdapter;
-import ru.orangesoftware.financisto.export.Export;
-import ru.orangesoftware.financisto.filter.Criteria;
-import ru.orangesoftware.financisto.model.Account;
-import ru.orangesoftware.financisto.model.Category;
-import ru.orangesoftware.financisto.model.CategoryTree;
-import ru.orangesoftware.financisto.model.Transaction;
-
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import ru.orangesoftware.financisto.blotter.BlotterFilter;
+import ru.orangesoftware.financisto.db.DatabaseAdapter;
+import ru.orangesoftware.financisto.export.Export;
+import ru.orangesoftware.financisto.filter.Criteria;
+import ru.orangesoftware.financisto.filter.WhereFilter;
+import ru.orangesoftware.financisto.model.Account;
+import ru.orangesoftware.financisto.model.Category;
+import ru.orangesoftware.financisto.model.CategoryTree;
+import ru.orangesoftware.financisto.model.Transaction;
 
 public class QifExport extends Export {
 
-    private final DatabaseAdapter db;
-    private final QifExportOptions options;
-    private final CategoryTree<Category> categories;
-    private final Map<Long, Category> categoriesMap;
     private final Map<Long, Account> accountsMap;
+
+    private final CategoryTree<Category> categories;
+
+    private final Map<Long, Category> categoriesMap;
+
+    private final DatabaseAdapter db;
+
+    private final QifExportOptions options;
 
     public QifExport(Context context, DatabaseAdapter db, QifExportOptions options) {
         super(context, false);
@@ -47,8 +50,8 @@ public class QifExport extends Export {
     }
 
     @Override
-    protected void writeHeader(BufferedWriter bw) throws IOException, PackageManager.NameNotFoundException {
-        // no header
+    protected String getExtension() {
+        return ".qif";
     }
 
     @Override
@@ -58,33 +61,30 @@ public class QifExport extends Export {
         writeAccountsAndTransactions(qifWriter);
     }
 
-    private void writeCategories(QifBufferedWriter qifWriter) throws IOException {
-        if (!categories.isEmpty()) {
-            qifWriter.writeCategoriesHeader();
-            for (Category c : categories) {
-                writeCategory(qifWriter, c);
-            }
-        }
+    @Override
+    protected void writeFooter(BufferedWriter bw) throws IOException {
+        // no footer
     }
 
-    private void writeCategory(QifBufferedWriter qifWriter, Category c) throws IOException {
-        QifCategory qifCategory = QifCategory.fromCategory(c);
-        qifCategory.writeTo(qifWriter);
-        if (c.hasChildren()) {
-            for (Category child : c.children) {
-                writeCategory(qifWriter, child);
-            }
-        }
+    @Override
+    protected void writeHeader(BufferedWriter bw) throws IOException, PackageManager.NameNotFoundException {
+        // no header
     }
 
-    private void writeAccountsAndTransactions(QifBufferedWriter qifWriter) throws IOException {
-        List<Account> accounts = db.getAllAccountsList();
-        for (Account a : accounts) {
-            if (isSelectedAccount(a)) {
-                QifAccount qifAccount = writeAccount(qifWriter, a);
-                writeTransactionsForAccount(qifWriter, qifAccount, a);
-            }
+    private List<QifTransaction> fromTransactions(List<Transaction> transactions, Map<Long, Category> categoriesMap,
+            Map<Long, Account> accountsMap) {
+        List<QifTransaction> qifTransactions = new ArrayList<QifTransaction>(transactions.size());
+        for (Transaction transaction : transactions) {
+            QifTransaction qifTransaction = QifTransaction.fromTransaction(transaction, categoriesMap, accountsMap);
+            qifTransactions.add(qifTransaction);
         }
+        return qifTransactions;
+    }
+
+    private Cursor getBlotterForAccount(Account account) {
+        WhereFilter accountFilter = WhereFilter.copyOf(options.filter);
+        accountFilter.put(Criteria.eq(BlotterFilter.FROM_ACCOUNT_ID, String.valueOf(account.id)));
+        return db.getBlotterForAccount(accountFilter);
     }
 
     private boolean isSelectedAccount(Account a) {
@@ -106,7 +106,37 @@ public class QifExport extends Export {
         return qifAccount;
     }
 
-    private void writeTransactionsForAccount(QifBufferedWriter qifWriter, QifAccount qifAccount, Account account) throws IOException {
+    private void writeAccountsAndTransactions(QifBufferedWriter qifWriter) throws IOException {
+        List<Account> accounts = db.getAllAccountsList();
+        for (Account a : accounts) {
+            if (isSelectedAccount(a)) {
+                QifAccount qifAccount = writeAccount(qifWriter, a);
+                writeTransactionsForAccount(qifWriter, qifAccount, a);
+            }
+        }
+    }
+
+    private void writeCategories(QifBufferedWriter qifWriter) throws IOException {
+        if (!categories.isEmpty()) {
+            qifWriter.writeCategoriesHeader();
+            for (Category c : categories) {
+                writeCategory(qifWriter, c);
+            }
+        }
+    }
+
+    private void writeCategory(QifBufferedWriter qifWriter, Category c) throws IOException {
+        QifCategory qifCategory = QifCategory.fromCategory(c);
+        qifCategory.writeTo(qifWriter);
+        if (c.hasChildren()) {
+            for (Category child : c.children) {
+                writeCategory(qifWriter, child);
+            }
+        }
+    }
+
+    private void writeTransactionsForAccount(QifBufferedWriter qifWriter, QifAccount qifAccount, Account account)
+            throws IOException {
         Cursor c = getBlotterForAccount(account);
         try {
             boolean addHeader = true;
@@ -126,31 +156,6 @@ public class QifExport extends Export {
         } finally {
             c.close();
         }
-    }
-
-    private List<QifTransaction> fromTransactions(List<Transaction> transactions, Map<Long, Category> categoriesMap, Map<Long, Account> accountsMap) {
-        List<QifTransaction> qifTransactions = new ArrayList<QifTransaction>(transactions.size());
-        for (Transaction transaction : transactions) {
-            QifTransaction qifTransaction = QifTransaction.fromTransaction(transaction, categoriesMap, accountsMap);
-            qifTransactions.add(qifTransaction);
-        }
-        return qifTransactions;
-    }
-
-    private Cursor getBlotterForAccount(Account account) {
-        WhereFilter accountFilter = WhereFilter.copyOf(options.filter);
-        accountFilter.put(Criteria.eq(BlotterFilter.FROM_ACCOUNT_ID, String.valueOf(account.id)));
-        return db.getBlotterForAccount(accountFilter);
-    }
-
-    @Override
-    protected void writeFooter(BufferedWriter bw) throws IOException {
-        // no footer
-    }
-
-    @Override
-    protected String getExtension() {
-        return ".qif";
     }
 
 }

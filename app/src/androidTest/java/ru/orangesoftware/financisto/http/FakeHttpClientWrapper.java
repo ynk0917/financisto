@@ -8,8 +8,6 @@
 
 package ru.orangesoftware.financisto.http;
 
-import org.json.JSONObject;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,8 +19,9 @@ import java.util.Map;
  */
 public class FakeHttpClientWrapper extends HttpClientWrapper {
 
-    public final Map<String, String> responses = new HashMap<String, String>();
     public Exception error;
+
+    public final Map<String, String> responses = new HashMap<String, String>();
 
     public FakeHttpClientWrapper() {
         super(null);

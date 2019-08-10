@@ -17,21 +17,21 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.ListAdapter;
 import android.widget.TextView;
-
+import java.util.List;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.adapter.EntityListAdapter;
 import ru.orangesoftware.financisto.filter.Criteria;
 import ru.orangesoftware.financisto.model.MyEntity;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 
-import java.util.List;
-
 public abstract class MyEntityListActivity<T extends MyEntity> extends AbstractListActivity {
 
     private static final int NEW_ENTITY_REQUEST = 1;
+
     private static final int EDIT_ENTITY_REQUEST = 2;
 
     private final Class<T> clazz;
+
     private final int emptyResId;
 
     private List<T> entities;
@@ -43,35 +43,18 @@ public abstract class MyEntityListActivity<T extends MyEntity> extends AbstractL
     }
 
     @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            recreateCursor();
+        }
     }
 
     @Override
-    protected void internalOnCreate(Bundle savedInstanceState) {
-        super.internalOnCreate(savedInstanceState);
-        entities = loadEntities();
-        ((TextView) findViewById(android.R.id.empty)).setText(emptyResId);
-    }
-
-    protected abstract List<T> loadEntities();
-
-    @Override
-    protected void addItem() {
+    public void editItem(View v, int position, long id) {
         Intent intent = new Intent(MyEntityListActivity.this, getEditActivityClass());
-        startActivityForResult(intent, NEW_ENTITY_REQUEST);
-    }
-
-    protected abstract Class<? extends MyEntityActivity> getEditActivityClass();
-
-    @Override
-    protected ListAdapter createAdapter(Cursor cursor) {
-        return new EntityListAdapter<>(this, entities);
-    }
-
-    @Override
-    protected Cursor createCursor() {
-        return null;
+        intent.putExtra(MyEntityActivity.ENTITY_ID_EXTRA, id);
+        startActivityForResult(intent, EDIT_ENTITY_REQUEST);
     }
 
     @Override
@@ -83,11 +66,26 @@ public abstract class MyEntityListActivity<T extends MyEntity> extends AbstractL
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            recreateCursor();
-        }
+    protected void addItem() {
+        Intent intent = new Intent(MyEntityListActivity.this, getEditActivityClass());
+        startActivityForResult(intent, NEW_ENTITY_REQUEST);
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
+    }
+
+    @Override
+    protected ListAdapter createAdapter(Cursor cursor) {
+        return new EntityListAdapter<>(this, entities);
+    }
+
+    protected abstract Criteria createBlotterCriteria(T e);
+
+    @Override
+    protected Cursor createCursor() {
+        return null;
     }
 
     @Override
@@ -96,12 +94,16 @@ public abstract class MyEntityListActivity<T extends MyEntity> extends AbstractL
         recreateCursor();
     }
 
+    protected abstract Class<? extends MyEntityActivity> getEditActivityClass();
+
     @Override
-    public void editItem(View v, int position, long id) {
-        Intent intent = new Intent(MyEntityListActivity.this, getEditActivityClass());
-        intent.putExtra(MyEntityActivity.ENTITY_ID_EXTRA, id);
-        startActivityForResult(intent, EDIT_ENTITY_REQUEST);
+    protected void internalOnCreate(Bundle savedInstanceState) {
+        super.internalOnCreate(savedInstanceState);
+        entities = loadEntities();
+        ((TextView) findViewById(android.R.id.empty)).setText(emptyResId);
     }
+
+    protected abstract List<T> loadEntities();
 
     @Override
     protected void viewItem(View v, int position, long id) {
@@ -111,7 +113,5 @@ public abstract class MyEntityListActivity<T extends MyEntity> extends AbstractL
         blotterFilter.toIntent(e.title, intent);
         startActivity(intent);
     }
-
-    protected abstract Criteria createBlotterCriteria(T e);
 
 }

@@ -4,7 +4,7 @@
  * are made available under the terms of the GNU Public License v2.0
  * which accompanies this distribution, and is available at
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * 
+ *
  * Contributors:
  *     Denis Solonenko - initial API and implementation
  ******************************************************************************/
@@ -17,7 +17,6 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.db.DatabaseHelper;
@@ -29,12 +28,8 @@ public class ProjectActivity extends Activity {
     public static final String ENTITY_ID_EXTRA = "entityId";
 
     private DatabaseAdapter db;
-    private Project project = new Project();
 
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
-    }
+    private Project project = new Project();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +69,11 @@ public class ProjectActivity extends Activity {
             }
         }
 
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
     }
 
     private void editProject() {

@@ -8,9 +8,8 @@
 
 package ru.orangesoftware.financisto.rates;
 
-import ru.orangesoftware.financisto.model.Currency;
-
 import java.util.List;
+import ru.orangesoftware.financisto.model.Currency;
 
 /**
  * Created by IntelliJ IDEA.

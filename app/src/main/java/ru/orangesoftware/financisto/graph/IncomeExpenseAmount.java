@@ -1,8 +1,7 @@
 package ru.orangesoftware.financisto.graph;
 
-import ru.orangesoftware.financisto.report.IncomeExpense;
-
 import java.math.BigDecimal;
+import ru.orangesoftware.financisto.report.IncomeExpense;
 
 /**
  * Created by IntelliJ IDEA.
@@ -11,23 +10,20 @@ import java.math.BigDecimal;
  */
 public class IncomeExpenseAmount {
 
-    public BigDecimal income = BigDecimal.ZERO;
     public BigDecimal expense = BigDecimal.ZERO;
+
+    public BigDecimal income = BigDecimal.ZERO;
 
     public void add(BigDecimal amount, boolean forceIncome) {
         if (forceIncome || amount.longValue() > 0) {
-            income  = income.add(amount);
+            income = income.add(amount);
         } else {
             expense = expense.add(amount);
         }
     }
 
-    public long max() {
-        return Math.max(Math.abs(income.longValue()), Math.abs(expense.longValue()));
-    }
-
     public long balance() {
-        return income.longValue()+expense.longValue();
+        return income.longValue() + expense.longValue();
     }
 
     public void filter(IncomeExpense incomeExpense) {
@@ -43,5 +39,9 @@ public class IncomeExpenseAmount {
                 expense = BigDecimal.ZERO;
                 break;
         }
+    }
+
+    public long max() {
+        return Math.max(Math.abs(income.longValue()), Math.abs(expense.longValue()));
     }
 }

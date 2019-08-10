@@ -8,10 +8,11 @@
 
 package ru.orangesoftware.financisto.datetime;
 
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.utils.LocalizableEnum;
-
-import java.util.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -190,15 +191,11 @@ public enum PeriodType implements LocalizableEnum {
         }
     };
 
-    public static PeriodType[] allRegular() {
-        List<PeriodType> types = new ArrayList<PeriodType>();
-        for (PeriodType periodType : PeriodType.values()) {
-            if (periodType.inPast) {
-                types.add(periodType);
-            }
-        }
-        return types.toArray(new PeriodType[types.size()]);
-    }
+    public final boolean inFuture;
+
+    public final boolean inPast;
+
+    public final int titleId;
 
     public static PeriodType[] allPlanner() {
         List<PeriodType> types = new ArrayList<PeriodType>();
@@ -210,23 +207,29 @@ public enum PeriodType implements LocalizableEnum {
         return types.toArray(new PeriodType[types.size()]);
     }
 
-    public final int titleId;
-    public final boolean inPast;
-    public final boolean inFuture;
+    public static PeriodType[] allRegular() {
+        List<PeriodType> types = new ArrayList<PeriodType>();
+        for (PeriodType periodType : PeriodType.values()) {
+            if (periodType.inPast) {
+                types.add(periodType);
+            }
+        }
+        return types.toArray(new PeriodType[types.size()]);
+    }
 
-    PeriodType(int titleId, boolean inPast,boolean inFuture) {
+    PeriodType(int titleId, boolean inPast, boolean inFuture) {
         this.titleId = titleId;
         this.inPast = inPast;
         this.inFuture = inFuture;
-    }
-
-    public int getTitleId() {
-        return titleId;
     }
 
     public abstract Period calculatePeriod(long refTime);
 
     public Period calculatePeriod() {
         return calculatePeriod(System.currentTimeMillis());
+    }
+
+    public int getTitleId() {
+        return titleId;
     }
 }

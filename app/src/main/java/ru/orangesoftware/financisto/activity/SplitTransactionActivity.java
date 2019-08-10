@@ -1,5 +1,7 @@
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.activity.CategorySelector.SelectorType.SPLIT;
+
 import android.content.Intent;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -8,17 +10,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import ru.orangesoftware.financisto.R;
-import static ru.orangesoftware.financisto.activity.CategorySelector.SelectorType.SPLIT;
 import ru.orangesoftware.financisto.model.Category;
 import ru.orangesoftware.financisto.model.Currency;
 import ru.orangesoftware.financisto.model.TransactionAttribute;
 import ru.orangesoftware.financisto.widget.AmountInput;
 import ru.orangesoftware.financisto.widget.AmountInput_;
 
-public class SplitTransactionActivity extends AbstractSplitActivity implements CategorySelector.CategorySelectorListener {
+public class SplitTransactionActivity extends AbstractSplitActivity
+        implements CategorySelector.CategorySelectorListener {
+
+    private AmountInput amountInput;
 
     private TextView amountTitle;
-    private AmountInput amountInput;
 
     private CategorySelector categorySelector;
 
@@ -27,12 +30,35 @@ public class SplitTransactionActivity extends AbstractSplitActivity implements C
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        categorySelector.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void onCategorySelected(Category category, boolean selectLast) {
+        if (category.isIncome()) {
+            amountInput.setIncome();
+        } else {
+            amountInput.setExpense();
+        }
+        split.categoryId = category.id;
+        categorySelector.addAttributes(split);
+    }
+
+    @Override
+    public void onSelectedId(int id, long selectedId) {
+        categorySelector.onSelectedId(id, selectedId);
+    }
+
+    @Override
     protected void createUI(LinearLayout layout) {
         categorySelector.createNode(layout, SPLIT);
 
         amountInput = AmountInput_.build(this);
         amountInput.setOwner(this);
-        amountInput.setOnAmountChangedListener((oldAmount, newAmount) -> setUnsplitAmount(split.unsplitAmount - newAmount));
+        amountInput.setOnAmountChangedListener(
+                (oldAmount, newAmount) -> setUnsplitAmount(split.unsplitAmount - newAmount));
         View v = x.addEditNode(layout, R.string.amount, amountInput);
         amountTitle = v.findViewById(R.id.label);
         categorySelector.createAttributesLayout(layout);
@@ -47,10 +73,9 @@ public class SplitTransactionActivity extends AbstractSplitActivity implements C
     }
 
     @Override
-    protected void updateUI() {
-        super.updateUI();
-        categorySelector.selectCategory(split.categoryId);
-        setAmount(split.fromAmount);
+    protected void onClick(View v, int id) {
+        super.onClick(v, id);
+        categorySelector.onClick(id);
     }
 
     @Override
@@ -59,6 +84,13 @@ public class SplitTransactionActivity extends AbstractSplitActivity implements C
         split.fromAmount = amountInput.getAmount();
         split.categoryAttributes = getAttributes();
         return true;
+    }
+
+    @Override
+    protected void updateUI() {
+        super.updateUI();
+        categorySelector.selectCategory(split.categoryId);
+        setAmount(split.fromAmount);
     }
 
     private Map<Long, String> getAttributes() {
@@ -70,39 +102,11 @@ public class SplitTransactionActivity extends AbstractSplitActivity implements C
         return attributes;
     }
 
-    @Override
-    public void onCategorySelected(Category category, boolean selectLast) {
-        if (category.isIncome()) {
-            amountInput.setIncome();
-        } else {
-            amountInput.setExpense();
-        }
-        split.categoryId = category.id;
-        categorySelector.addAttributes(split);
-    }
-
     private void setAmount(long amount) {
         amountInput.setAmount(amount);
         Currency c = getCurrency();
         amountInput.setCurrency(c);
-        amountTitle.setText(getString(R.string.amount)+" ("+c.name+")");
-    }
-
-    @Override
-    protected void onClick(View v, int id) {
-        super.onClick(v, id);
-        categorySelector.onClick(id);
-    }
-
-    @Override
-    public void onSelectedId(int id, long selectedId) {
-        categorySelector.onSelectedId(id, selectedId);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        categorySelector.onActivityResult(requestCode, resultCode, data);
+        amountTitle.setText(getString(R.string.amount) + " (" + c.name + ")");
     }
 
 }

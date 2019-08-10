@@ -10,9 +10,8 @@ package ru.orangesoftware.financisto.rates;
 
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
-import ru.orangesoftware.financisto.model.Currency;
-
 import java.util.List;
+import ru.orangesoftware.financisto.model.Currency;
 
 /**
  * Created by IntelliJ IDEA.
@@ -21,7 +20,19 @@ import java.util.List;
  */
 public class LatestExchangeRates implements ExchangeRateProvider, ExchangeRatesCollection {
 
-    private final TLongObjectMap<TLongObjectMap<ExchangeRate>> rates = new TLongObjectHashMap<TLongObjectMap<ExchangeRate>>();
+    private final TLongObjectMap<TLongObjectMap<ExchangeRate>> rates
+            = new TLongObjectHashMap<TLongObjectMap<ExchangeRate>>();
+
+    @Override
+    public void addRate(ExchangeRate r) {
+        TLongObjectMap<ExchangeRate> rateMap = getMapFor(r.fromCurrencyId);
+        rateMap.put(r.toCurrencyId, r);
+    }
+
+    @Override
+    public ExchangeRate getRate(Currency fromCurrency, Currency toCurrency, long atTime) {
+        return getRate(fromCurrency, toCurrency);
+    }
 
     @Override
     public ExchangeRate getRate(Currency fromCurrency, Currency toCurrency) {
@@ -38,19 +49,8 @@ public class LatestExchangeRates implements ExchangeRateProvider, ExchangeRatesC
     }
 
     @Override
-    public ExchangeRate getRate(Currency fromCurrency, Currency toCurrency, long atTime) {
-        return getRate(fromCurrency, toCurrency);
-    }
-
-    @Override
     public List<ExchangeRate> getRates(List<Currency> currencies) {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void addRate(ExchangeRate r) {
-        TLongObjectMap<ExchangeRate> rateMap = getMapFor(r.fromCurrencyId);
-        rateMap.put(r.toCurrencyId, r);
     }
 
     private TLongObjectMap<ExchangeRate> getMapFor(long fromCurrencyId) {

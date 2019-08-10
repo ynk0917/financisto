@@ -1,15 +1,11 @@
 package ru.orangesoftware.financisto.utils;
 
-import android.test.AndroidTestCase;
-
-import org.junit.Test;
-
-import ru.orangesoftware.financisto.model.Transaction;
+import static org.junit.Assert.*;
 
 import java.util.Arrays;
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
+import org.junit.*;
+import ru.orangesoftware.financisto.model.Transaction;
 
 /**
  * Created by IntelliJ IDEA.

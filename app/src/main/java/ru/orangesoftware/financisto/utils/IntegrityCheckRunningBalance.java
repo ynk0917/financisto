@@ -9,12 +9,10 @@
 package ru.orangesoftware.financisto.utils;
 
 import android.content.Context;
-
+import java.util.List;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.model.Account;
-
-import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -24,6 +22,7 @@ import java.util.List;
 public class IntegrityCheckRunningBalance implements IntegrityCheck {
 
     private final Context context;
+
     private final DatabaseAdapter db;
 
     public IntegrityCheckRunningBalance(Context context, DatabaseAdapter db) {

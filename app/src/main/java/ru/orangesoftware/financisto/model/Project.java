@@ -20,6 +20,9 @@ public class Project extends MyEntity {
 
     public static final int NO_PROJECT_ID = 0;
 
+    @Column(name = "is_active")
+    public boolean isActive;
+
     public static Project noProject() {
         Project project = new Project();
         project.id = NO_PROJECT_ID;
@@ -27,7 +30,4 @@ public class Project extends MyEntity {
         project.isActive = true;
         return project;
     }
-
-    @Column(name = "is_active")
-    public boolean isActive;
 }

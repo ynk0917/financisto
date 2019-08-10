@@ -8,6 +8,8 @@
 
 package ru.orangesoftware.financisto.model.rates;
 
+import static ru.orangesoftware.financisto.model.rates.AssertExchangeRate.assertRate;
+
 import ru.orangesoftware.financisto.db.AbstractDbTest;
 import ru.orangesoftware.financisto.model.Currency;
 import ru.orangesoftware.financisto.rates.ExchangeRate;
@@ -15,8 +17,6 @@ import ru.orangesoftware.financisto.rates.ExchangeRateProvider;
 import ru.orangesoftware.financisto.test.CurrencyBuilder;
 import ru.orangesoftware.financisto.test.DateTime;
 import ru.orangesoftware.financisto.test.RateBuilder;
-
-import static ru.orangesoftware.financisto.model.rates.AssertExchangeRate.assertRate;
 
 /**
  * Created by IntelliJ IDEA.
@@ -26,6 +26,7 @@ import static ru.orangesoftware.financisto.model.rates.AssertExchangeRate.assert
 public class HistoryExchangeRatesTest extends AbstractDbTest {
 
     Currency c1;
+
     Currency c2;
 
     @Override
@@ -41,7 +42,7 @@ public class HistoryExchangeRatesTest extends AbstractDbTest {
         RateBuilder.withDb(db).from(c1).to(c2).at(DateTime.date(2012, 1, 20)).rate(0.78712f).create();
 
         ExchangeRateProvider rates = db.getHistoryRates();
-        
+
         ExchangeRate rate = rates.getRate(c1, c2);
         assertRate(DateTime.date(2012, 1, 20), 0.78712f, rate);
 

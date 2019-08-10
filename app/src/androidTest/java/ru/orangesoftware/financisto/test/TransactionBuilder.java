@@ -1,10 +1,19 @@
 package ru.orangesoftware.financisto.test;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
-import ru.orangesoftware.financisto.model.*;
+import ru.orangesoftware.financisto.model.Account;
+import ru.orangesoftware.financisto.model.Category;
 import ru.orangesoftware.financisto.model.Currency;
-
-import java.util.*;
+import ru.orangesoftware.financisto.model.MyLocation;
+import ru.orangesoftware.financisto.model.Project;
+import ru.orangesoftware.financisto.model.Transaction;
+import ru.orangesoftware.financisto.model.TransactionAttribute;
+import ru.orangesoftware.financisto.model.TransactionStatus;
 
 /**
  * Created by IntelliJ IDEA.
@@ -13,9 +22,11 @@ import java.util.*;
  */
 public class TransactionBuilder {
 
-    private final DatabaseAdapter db;
-    private final Transaction t = new Transaction();
     private List<TransactionAttribute> attributes;
+
+    private final DatabaseAdapter db;
+
+    private final Transaction t = new Transaction();
 
     public static TransactionBuilder withDb(DatabaseAdapter db) {
         return new TransactionBuilder(db);
@@ -36,6 +47,43 @@ public class TransactionBuilder {
         return this;
     }
 
+    public TransactionBuilder category(Category c) {
+        t.categoryId = c.id;
+        return this;
+    }
+
+    public TransactionBuilder ccPayment() {
+        t.isCCardPayment = 1;
+        return this;
+    }
+
+    public Transaction create() {
+        t.id = db.insertOrUpdate(t, attributes);
+        return t;
+    }
+
+    public TransactionBuilder dateTime(DateTime dateTime) {
+        t.dateTime = dateTime.asLong();
+        return this;
+    }
+
+    public TransactionBuilder location(String location) {
+        MyLocation myLocation = new MyLocation();
+        myLocation.name = location;
+        t.locationId = db.saveLocation(myLocation);
+        return this;
+    }
+
+    public TransactionBuilder makeTemplate() {
+        t.setAsTemplate();
+        return this;
+    }
+
+    public TransactionBuilder note(String note) {
+        t.note = note;
+        return this;
+    }
+
     public TransactionBuilder originalAmount(Currency originalCurrency, long originalAmount) {
         t.originalCurrencyId = originalCurrency.id;
         t.originalFromAmount = originalAmount;
@@ -47,47 +95,10 @@ public class TransactionBuilder {
         return this;
     }
 
-    public TransactionBuilder location(String location) {
-        MyLocation myLocation = new MyLocation();
-        myLocation.name = location;
-        t.locationId = db.saveLocation(myLocation);
-        return this;
-    }
-
     public TransactionBuilder project(String project) {
         Project myProject = new Project();
         myProject.title = project;
         t.projectId = db.saveOrUpdate(myProject);
-        return this;
-    }
-
-    public TransactionBuilder note(String note) {
-        t.note = note;
-        return this;
-    }
-
-    public TransactionBuilder withStatus(TransactionStatus status) {
-        t.status = status;
-        return this;
-    }
-
-    public TransactionBuilder category(Category c) {
-        t.categoryId = c.id;
-        return this;
-    }
-
-    public TransactionBuilder ccPayment() {
-        t.isCCardPayment = 1;
-        return this;
-    }
-
-    public TransactionBuilder dateTime(DateTime dateTime) {
-        t.dateTime = dateTime.asLong();
-        return this;
-    }
-
-    public TransactionBuilder makeTemplate() {
-        t.setAsTemplate();
         return this;
     }
 
@@ -103,6 +114,11 @@ public class TransactionBuilder {
         return this;
     }
 
+    public TransactionBuilder withAttributes(TransactionAttribute... attributes) {
+        this.attributes = Arrays.asList(attributes);
+        return this;
+    }
+
     public TransactionBuilder withSplit(Category category, long amount) {
         return withSplit(category, amount, null, null, null);
     }
@@ -115,7 +131,8 @@ public class TransactionBuilder {
         return withSplit(category, amount, note, null, null);
     }
 
-    public TransactionBuilder withSplit(Category category, long amount, String note, Project p, TransactionAttribute a) {
+    public TransactionBuilder withSplit(Category category, long amount, String note, Project p,
+            TransactionAttribute a) {
         Transaction split = new Transaction();
         split.categoryId = category.id;
         split.fromAmount = amount;
@@ -133,6 +150,11 @@ public class TransactionBuilder {
         return this;
     }
 
+    public TransactionBuilder withStatus(TransactionStatus status) {
+        t.status = status;
+        return this;
+    }
+
     public TransactionBuilder withTransferSplit(Account toAccount, long fromAmount, long toAmount) {
         return withTransferSplit(toAccount, fromAmount, toAmount, null);
     }
@@ -146,15 +168,5 @@ public class TransactionBuilder {
         t.splits.add(split);
         t.categoryId = Category.SPLIT_CATEGORY_ID;
         return this;
-    }
-
-    public TransactionBuilder withAttributes(TransactionAttribute...attributes) {
-        this.attributes = Arrays.asList(attributes);
-        return this;
-    }
-
-    public Transaction create() {
-        t.id = db.insertOrUpdate(t, attributes);
-        return t;
     }
 }

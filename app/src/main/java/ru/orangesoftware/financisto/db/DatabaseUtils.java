@@ -17,7 +17,21 @@ import ru.orangesoftware.financisto.utils.Utils;
  * Date: 5/28/12 10:11 PM
  */
 public class DatabaseUtils {
-    
+
+    public static String generateSelectClause(String[] fields, String prefix) {
+        StringBuilder res = new StringBuilder();
+        for (String f : fields) {
+            if (res.length() > 0) {
+                res.append(", ");
+            }
+            if (Utils.isNotEmpty(prefix)) {
+                res.append(prefix).append(".");
+            }
+            res.append(f);
+        }
+        return res.toString();
+    }
+
     public static long rawFetchId(DatabaseAdapter db, String query, String[] selectionArgs) {
         return rawFetchLong(db, query, selectionArgs, -1);
     }
@@ -33,19 +47,5 @@ public class DatabaseUtils {
             }
         }
         return defaultValue;
-    }
-
-    public static String generateSelectClause(String[] fields, String prefix) {
-        StringBuilder res = new StringBuilder();
-        for (String f : fields) {
-            if (res.length() > 0) {
-                res.append(", ");
-            }
-            if (Utils.isNotEmpty(prefix)) {
-                res.append(prefix).append(".");
-            }
-            res.append(f);
-        }
-        return res.toString();
     }
 }

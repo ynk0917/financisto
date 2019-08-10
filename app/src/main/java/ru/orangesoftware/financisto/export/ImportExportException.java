@@ -16,8 +16,10 @@ package ru.orangesoftware.financisto.export;
  */
 public class ImportExportException extends Exception {
 
-    public final int errorResId;
     public final Exception cause;
+
+    public final int errorResId;
+
     public final Object[] formatArgs;
 
     public ImportExportException(int errorResId) {

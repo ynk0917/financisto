@@ -11,9 +11,7 @@
 package ru.orangesoftware.financisto.activity;
 
 import android.view.View;
-
 import java.util.List;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.blotter.BlotterFilter;
 import ru.orangesoftware.financisto.filter.Criteria;
@@ -26,16 +24,6 @@ public class LocationsListActivity extends MyEntityListActivity<MyLocation> {
     }
 
     @Override
-    protected List<MyLocation> loadEntities() {
-        return db.getAllLocationsList(false);
-    }
-
-    @Override
-    protected Class getEditActivityClass() {
-        return LocationActivity.class;
-    }
-
-    @Override
     protected Criteria createBlotterCriteria(MyLocation location) {
         return Criteria.eq(BlotterFilter.LOCATION_ID, String.valueOf(location.id));
     }
@@ -44,6 +32,16 @@ public class LocationsListActivity extends MyEntityListActivity<MyLocation> {
     protected void deleteItem(View v, int position, long id) {
         db.deleteLocation(id);
         recreateCursor();
+    }
+
+    @Override
+    protected Class getEditActivityClass() {
+        return LocationActivity.class;
+    }
+
+    @Override
+    protected List<MyLocation> loadEntities() {
+        return db.getAllLocationsList(false);
     }
 
 }

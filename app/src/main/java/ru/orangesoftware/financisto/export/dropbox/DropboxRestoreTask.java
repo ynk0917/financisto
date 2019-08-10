@@ -12,11 +12,9 @@ import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
 import ru.orangesoftware.financisto.R;
-import ru.orangesoftware.financisto.activity.MainActivity;
 import ru.orangesoftware.financisto.backup.DatabaseImport;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.export.ImportExportAsyncTask;
-import ru.orangesoftware.financisto.export.ImportExportAsyncTaskListener;
 
 /**
  * Created by IntelliJ IDEA.
@@ -33,15 +31,15 @@ public class DropboxRestoreTask extends ImportExportAsyncTask {
     }
 
     @Override
+    protected String getSuccessMessage(Object result) {
+        return context.getString(R.string.restore_database_success);
+    }
+
+    @Override
     protected Object work(Context context, DatabaseAdapter db, String... params) throws Exception {
         Dropbox dropbox = new Dropbox(context);
         DatabaseImport.createFromDropboxBackup(context, db, dropbox, backupFile).importDatabase();
         return true;
-    }
-
-    @Override
-    protected String getSuccessMessage(Object result) {
-        return context.getString(R.string.restore_database_success);
     }
 
 }

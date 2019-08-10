@@ -21,17 +21,27 @@ public class MyLocation extends MyEntity {
 
     public static final int CURRENT_LOCATION_ID = 0;
 
-    public static MyLocation currentLocation() {
-        MyLocation location = new MyLocation();
-        location.id = CURRENT_LOCATION_ID;
-        location.name = "<CURRENT_LOCATION>";
-        location.provider = location.resolvedAddress = "?";
-        return location;
-    }
+    @Column(name = "accuracy")
+    public float accuracy;
+
+    @Column(name = "count")
+    public int count;
+
+    @Column(name = "datetime")
+    public long dateTime;
 
     @Id
     @Column(name = "_id")
     public long id = -1;
+
+    @Column(name = "is_payee")
+    public boolean isPayee;
+
+    @Column(name = "latitude")
+    public double latitude;
+
+    @Column(name = "longitude")
+    public double longitude;
 
     @Column(name = "name")
     public String name;
@@ -39,25 +49,15 @@ public class MyLocation extends MyEntity {
     @Column(name = "provider")
     public String provider;
 
-    @Column(name = "accuracy")
-    public float accuracy;
-
-    @Column(name = "longitude")
-    public double longitude;
-
-    @Column(name = "latitude")
-    public double latitude;
-
-    @Column(name = "is_payee")
-    public boolean isPayee;
-
     @Column(name = "resolved_address")
     public String resolvedAddress;
 
-    @Column(name = "datetime")
-    public long dateTime;
-
-    @Column(name = "count")
-    public int count;
+    public static MyLocation currentLocation() {
+        MyLocation location = new MyLocation();
+        location.id = CURRENT_LOCATION_ID;
+        location.name = "<CURRENT_LOCATION>";
+        location.provider = location.resolvedAddress = "?";
+        return location;
+    }
 
 }

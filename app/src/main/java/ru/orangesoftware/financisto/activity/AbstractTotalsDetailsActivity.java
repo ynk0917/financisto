@@ -16,17 +16,16 @@ import android.view.Window;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.model.Currency;
 import ru.orangesoftware.financisto.model.Total;
 import ru.orangesoftware.financisto.rates.ExchangeRate;
 import ru.orangesoftware.financisto.rates.ExchangeRateProvider;
 import ru.orangesoftware.financisto.utils.Utils;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -35,51 +34,31 @@ import java.util.List;
  */
 public abstract class AbstractTotalsDetailsActivity extends AbstractActivity {
 
-    private LinearLayout layout;
-    private View calculatingNode;
-    private Utils u;
-    protected boolean shouldShowHomeCurrencyTotal = true;
+    private static class TotalInfo {
 
-    private final int titleNodeResId;
+        public final ExchangeRate rate;
 
-    protected AbstractTotalsDetailsActivity(int titleNodeResId) {
-        this.titleNodeResId = titleNodeResId;
+        public final Total total;
+
+        public TotalInfo(Total total, ExchangeRate rate) {
+            this.total = total;
+            this.rate = rate;
+        }
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    private static class TotalsInfo {
 
-        requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
-        setContentView(R.layout.totals_details);
+        public final Total totalInHomeCurrency;
 
-        u = new Utils(this);
-        layout = (LinearLayout)findViewById(R.id.list);
-        calculatingNode = x.addTitleNodeNoDivider(layout, R.string.calculating);
+        public final List<TotalInfo> totals;
 
-        Button bOk = (Button)findViewById(R.id.bOK);
-        bOk.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                finish();
-            }
-        });
+        public TotalsInfo(List<TotalInfo> totals, Total totalInHomeCurrency) {
+            this.totals = totals;
+            this.totalInHomeCurrency = totalInHomeCurrency;
+        }
 
-        internalOnCreate();
-        calculateTotals();
     }
 
-    protected void internalOnCreate() {}
-
-    private void calculateTotals() {
-        CalculateAccountsTotalsTask task = new CalculateAccountsTotalsTask();
-        task.execute();
-    }
-
-    @Override
-    protected void onClick(View v, int id) {
-    }
-    
     private class CalculateAccountsTotalsTask extends AsyncTask<Void, Void, TotalsInfo> {
 
         @Override
@@ -118,15 +97,6 @@ public abstract class AbstractTotalsDetailsActivity extends AbstractActivity {
             }
         }
 
-        private void addAmountNode(Total total, String title) {
-            x.addTitleNodeNoDivider(layout, title);
-            if (total.isError()) {
-                addAmountAndErrorNode(total);
-            } else {
-                addSingleAmountNode(total);
-            }
-        }
-
         private void addAmountAndErrorNode(Total total) {
             TextView data = x.addInfoNode(layout, -1, R.string.not_available, "");
             Drawable dr = getResources().getDrawable(R.drawable.total_error);
@@ -139,6 +109,15 @@ public abstract class AbstractTotalsDetailsActivity extends AbstractActivity {
             data.setError("Error!", dr);
         }
 
+        private void addAmountNode(Total total, String title) {
+            x.addTitleNodeNoDivider(layout, title);
+            if (total.isError()) {
+                addAmountAndErrorNode(total);
+            } else {
+                addSingleAmountNode(total);
+            }
+        }
+
         private void addSingleAmountNode(Total total) {
             TextView label = x.addInfoNodeSingle(layout, -1, "");
             u.setAmountText(label, total);
@@ -146,34 +125,61 @@ public abstract class AbstractTotalsDetailsActivity extends AbstractActivity {
 
     }
 
+    protected boolean shouldShowHomeCurrencyTotal = true;
+
+    private View calculatingNode;
+
+    private LinearLayout layout;
+
+    private final int titleNodeResId;
+
+    private Utils u;
+
+    protected AbstractTotalsDetailsActivity(int titleNodeResId) {
+        this.titleNodeResId = titleNodeResId;
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
+        setContentView(R.layout.totals_details);
+
+        u = new Utils(this);
+        layout = (LinearLayout) findViewById(R.id.list);
+        calculatingNode = x.addTitleNodeNoDivider(layout, R.string.calculating);
+
+        Button bOk = (Button) findViewById(R.id.bOK);
+        bOk.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                finish();
+            }
+        });
+
+        internalOnCreate();
+        calculateTotals();
+    }
+
     protected abstract Total getTotalInHomeCurrency();
 
     protected abstract Total[] getTotals();
 
-    protected void prepareInBackground() { }
-
-    private static class TotalInfo {
-
-        public final Total total;
-        public final ExchangeRate rate;
-
-        public TotalInfo(Total total, ExchangeRate rate) {
-            this.total = total;
-            this.rate = rate;
-        }
+    protected void internalOnCreate() {
     }
-    
-    private static class TotalsInfo {
-        
-        public final List<TotalInfo> totals;
-        public final Total totalInHomeCurrency;
 
-        public TotalsInfo(List<TotalInfo> totals, Total totalInHomeCurrency) {
-            this.totals = totals;
-            this.totalInHomeCurrency = totalInHomeCurrency;
-        }
-
+    @Override
+    protected void onClick(View v, int id) {
     }
-    
+
+    protected void prepareInBackground() {
+    }
+
+    private void calculateTotals() {
+        CalculateAccountsTotalsTask task = new CalculateAccountsTotalsTask();
+        task.execute();
+    }
+
 
 }

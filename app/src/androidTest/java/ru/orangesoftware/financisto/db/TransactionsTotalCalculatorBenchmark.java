@@ -9,12 +9,15 @@
 package ru.orangesoftware.financisto.db;
 
 import android.util.Log;
+import java.util.Calendar;
 import ru.orangesoftware.financisto.filter.WhereFilter;
 import ru.orangesoftware.financisto.model.Account;
 import ru.orangesoftware.financisto.model.Currency;
-import ru.orangesoftware.financisto.test.*;
-
-import java.util.Calendar;
+import ru.orangesoftware.financisto.test.AccountBuilder;
+import ru.orangesoftware.financisto.test.CurrencyBuilder;
+import ru.orangesoftware.financisto.test.DateTime;
+import ru.orangesoftware.financisto.test.RateBuilder;
+import ru.orangesoftware.financisto.test.TransactionBuilder;
 
 /**
  * Created by IntelliJ IDEA.
@@ -23,12 +26,13 @@ import java.util.Calendar;
  */
 public class TransactionsTotalCalculatorBenchmark extends AbstractDbTest {
 
-    Currency c1;
-    Currency c2;
-
     Account a1;
 
     TransactionsTotalCalculator c;
+
+    Currency c1;
+
+    Currency c2;
 
     @Override
     public void setUp() throws Exception {
@@ -47,7 +51,7 @@ public class TransactionsTotalCalculatorBenchmark extends AbstractDbTest {
         Calendar calendar = Calendar.getInstance();
         while (--count > 0) {
             DateTime date = DateTime.fromTimestamp(calendar.getTimeInMillis());
-            RateBuilder.withDb(db).from(c1).to(c2).at(date).rate(1f/count).create();
+            RateBuilder.withDb(db).from(c1).to(c2).at(date).rate(1f / count).create();
             TransactionBuilder.withDb(db).account(a1).dateTime(date.atMidnight()).amount(1000).create();
             TransactionBuilder.withDb(db).account(a1).dateTime(date.atNoon()).amount(2000).create();
             TransactionBuilder.withDb(db).account(a1).dateTime(date.atDayEnd()).amount(3000).create();
@@ -59,5 +63,5 @@ public class TransactionsTotalCalculatorBenchmark extends AbstractDbTest {
         long t2 = System.currentTimeMillis();
         Log.d("TransactionsTotalCalculatorBenchmark", "Time to get account total: " + (t2 - t1) + "ms");
     }
-    
+
 }

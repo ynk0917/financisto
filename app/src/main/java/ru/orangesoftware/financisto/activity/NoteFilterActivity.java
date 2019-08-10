@@ -18,7 +18,6 @@ import android.os.Bundle;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.blotter.BlotterFilter;
 import ru.orangesoftware.financisto.filter.Criteria;
@@ -30,11 +29,6 @@ public class NoteFilterActivity extends Activity {
     public static final String NOTE_CONTAINING = "note_containing";
 
     private EditText edNoteContaining;
-
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,6 +72,11 @@ public class NoteFilterActivity extends Activity {
                 edNoteContaining.setText(v.substring(1, v.length() - 1).replace("%", " "));
             }
         }
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
     }
 
     @Override

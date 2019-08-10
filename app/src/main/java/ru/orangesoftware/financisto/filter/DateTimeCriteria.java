@@ -8,22 +8,81 @@
 
 package ru.orangesoftware.financisto.filter;
 
+import java.util.Calendar;
 import ru.orangesoftware.financisto.blotter.BlotterFilter;
 import ru.orangesoftware.financisto.datetime.DateUtils;
 import ru.orangesoftware.financisto.datetime.Period;
 import ru.orangesoftware.financisto.datetime.PeriodType;
 
-import java.util.Calendar;
-
 /**
-* Created by IntelliJ IDEA.
-* User: denis.solonenko
-* Date: 12/17/12 9:06 PM
-*/
+ * Created by IntelliJ IDEA.
+ * User: denis.solonenko
+ * Date: 12/17/12 9:06 PM
+ */
 public class DateTimeCriteria extends Criteria {
 
     public static final long START_OF_ERA;
+
     public static final long END_OF_ERA;
+
+    private final Period period;
+
+    public static Criteria fromStringExtra(String extra) {
+        String[] a = extra.split(",");
+        if ("#".equals(a[1])) {
+            // new format support
+            PeriodType period = PeriodType.valueOf(a[2]);
+            if (period == PeriodType.CUSTOM) {
+                return new DateTimeCriteria(
+                        new Period(PeriodType.CUSTOM, Long.parseLong(a[3]), Long.parseLong(a[4])));
+            } else {
+                return new DateTimeCriteria(DateUtils.getPeriod(period));
+            }
+        } else {
+            // legacy support
+            WhereFilter.Operation op = WhereFilter.Operation.valueOf(a[1]);
+            if (op == WhereFilter.Operation.GTE) {
+                return new DateTimeCriteria(new Period(PeriodType.CUSTOM, Long.parseLong(a[2]), END_OF_ERA));
+            } else if (op == WhereFilter.Operation.LTE) {
+                return new DateTimeCriteria(new Period(PeriodType.CUSTOM, START_OF_ERA, Long.parseLong(a[2])));
+            } else if (a.length > 3) {
+                return new DateTimeCriteria(
+                        new Period(PeriodType.CUSTOM, Long.parseLong(a[2]), Long.parseLong(a[3])));
+            } else {
+                return new DateTimeCriteria(DateUtils.getPeriod(PeriodType.THIS_MONTH));
+            }
+        }
+    }
+
+    public DateTimeCriteria(Period period) {
+        super(BlotterFilter.DATETIME, WhereFilter.Operation.BTW, String.valueOf(period.start),
+                String.valueOf(period.end));
+        this.period = period;
+    }
+
+    public DateTimeCriteria(PeriodType period) {
+        this(DateUtils.getPeriod(period));
+    }
+
+    public DateTimeCriteria(long start, long end) {
+        this(new Period(PeriodType.CUSTOM, start, end));
+    }
+
+    public Period getPeriod() {
+        return period;
+    }
+
+    public String toStringExtra() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(BlotterFilter.DATETIME).append(",#,");
+        sb.append(period.type.name());
+        if (period.isCustom()) {
+            sb.append(",");
+            sb.append(period.start).append(",");
+            sb.append(period.end);
+        }
+        return sb.toString();
+    }
 
     static {
         Calendar c = Calendar.getInstance();
@@ -43,62 +102,6 @@ public class DateTimeCriteria extends Criteria {
         c.set(Calendar.SECOND, 59);
         c.set(Calendar.MILLISECOND, 999);
         END_OF_ERA = c.getTimeInMillis();
-    }
-
-    private final Period period;
-
-    public DateTimeCriteria(Period period) {
-        super(BlotterFilter.DATETIME, WhereFilter.Operation.BTW, String.valueOf(period.start), String.valueOf(period.end));
-        this.period = period;
-    }
-
-    public DateTimeCriteria(PeriodType period) {
-        this(DateUtils.getPeriod(period));
-    }
-
-    public DateTimeCriteria(long start, long end) {
-        this(new Period(PeriodType.CUSTOM, start, end));
-    }
-
-    public String toStringExtra() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(BlotterFilter.DATETIME).append(",#,");
-        sb.append(period.type.name());
-        if (period.isCustom()) {
-            sb.append(",");
-            sb.append(period.start).append(",");
-            sb.append(period.end);
-        }
-        return sb.toString();
-    }
-
-    public static Criteria fromStringExtra(String extra) {
-        String[] a = extra.split(",");
-        if ("#".equals(a[1])) {
-            // new format support
-            PeriodType period = PeriodType.valueOf(a[2]);
-            if (period == PeriodType.CUSTOM) {
-                return new DateTimeCriteria(new Period(PeriodType.CUSTOM, Long.parseLong(a[3]), Long.parseLong(a[4])));
-            } else {
-                return new DateTimeCriteria(DateUtils.getPeriod(period));
-            }
-        } else {
-            // legacy support
-            WhereFilter.Operation op = WhereFilter.Operation.valueOf(a[1]);
-            if (op == WhereFilter.Operation.GTE) {
-                return new DateTimeCriteria(new Period(PeriodType.CUSTOM, Long.parseLong(a[2]), END_OF_ERA));
-            } else if (op == WhereFilter.Operation.LTE) {
-                return new DateTimeCriteria(new Period(PeriodType.CUSTOM, START_OF_ERA, Long.parseLong(a[2])));
-            } else if (a.length > 3) {
-                return new DateTimeCriteria(new Period(PeriodType.CUSTOM, Long.parseLong(a[2]), Long.parseLong(a[3])));
-            } else {
-                return new DateTimeCriteria(DateUtils.getPeriod(PeriodType.THIS_MONTH));
-            }
-        }
-    }
-
-    public Period getPeriod() {
-        return period;
     }
 
 }

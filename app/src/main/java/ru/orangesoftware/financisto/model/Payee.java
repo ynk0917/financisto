@@ -4,7 +4,7 @@
  * are made available under the terms of the GNU Public License v2.0
  * which accompanies this distribution, and is available at
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * 
+ *
  * Contributors:
  *     Denis Solonenko - initial API and implementation
  ******************************************************************************/
@@ -20,12 +20,12 @@ public class Payee extends MyEntity {
 
     public static final Payee EMPTY = new Payee();
 
+    @Column(name = "last_category_id")
+    public long lastCategoryId;
+
     static {
         EMPTY.id = 0;
         EMPTY.title = "No payee";
     }
-
-    @Column(name = "last_category_id")
-    public long lastCategoryId;
 
 }

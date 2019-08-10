@@ -21,14 +21,18 @@ import ru.orangesoftware.financisto.db.DatabaseAdapter;
 public class CategoryTreeNavigator {
 
     public static final long INCOME_CATEGORY_ID = -101;
+
     public static final long EXPENSE_CATEGORY_ID = -102;
 
-    private final DatabaseAdapter db;
-    private final Stack<CategoryTree<Category>> categoriesStack = new Stack<>();
-    private final long excludedTreeId;
-
     public CategoryTree<Category> categories;
+
     public long selectedCategoryId = 0;
+
+    private final Stack<CategoryTree<Category>> categoriesStack = new Stack<>();
+
+    private final DatabaseAdapter db;
+
+    private final long excludedTreeId;
 
     public CategoryTreeNavigator(DatabaseAdapter db) {
         this(db, -1);
@@ -40,6 +44,53 @@ public class CategoryTreeNavigator {
         this.categories = db.getCategoriesTreeWithoutSubTree(excludedTreeId, false);
         Category noCategory = db.getCategoryWithParent(Category.NO_CATEGORY_ID);
         tagCategories(noCategory);
+    }
+
+    public void addSplitCategoryToTheTop() {
+        Category splitCategory = db.getCategoryWithParent(Category.SPLIT_CATEGORY_ID);
+        categories.insertAtTop(splitCategory);
+    }
+
+    public boolean canGoBack() {
+        return !categoriesStack.isEmpty();
+    }
+
+    public long getExcludedTreeId() {
+        return excludedTreeId;
+    }
+
+    public List<Category> getSelectedRoots() {
+        return categories.getRoots();
+    }
+
+    public boolean goBack() {
+        if (!categoriesStack.isEmpty()) {
+            Category selectedCategory = findCategory(selectedCategoryId);
+            if (selectedCategory != null) {
+                selectedCategoryId = selectedCategory.getParentId();
+            }
+            categories = categoriesStack.pop();
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isSelected(long categoryId) {
+        return selectedCategoryId == categoryId;
+    }
+
+    public boolean navigateTo(long categoryId) {
+        Category selectedCategory = findCategory(categoryId);
+        if (selectedCategory != null) {
+            selectedCategoryId = selectedCategory.id;
+            if (selectedCategory.hasChildren()) {
+                categoriesStack.push(categories);
+                categories = selectedCategory.children;
+                tagCategories(selectedCategory);
+                return true;
+            }
+        }
+        return false;
     }
 
     public void selectCategory(long selectedCategoryId) {
@@ -57,84 +108,6 @@ public class CategoryTreeNavigator {
             }
             this.selectedCategoryId = selectedCategoryId;
         }
-    }
-
-    public void tagCategories(Category parent) {
-        if (categories.size() > 0 && categories.getAt(0).id != parent.id) {
-            Category copy = new Category();
-            copy.id = parent.id;
-            copy.title = parent.title;
-            if (parent.isIncome()) {
-                copy.makeThisCategoryIncome();
-            }
-            categories.insertAtTop(copy);
-        }
-        StringBuilder sb = new StringBuilder();
-        for (Category c : categories) {
-            if (c.tag == null && c.hasChildren()) {
-                sb.setLength(0);
-                CategoryTree<Category> children = c.children;
-                for (Category child : children) {
-                    if (sb.length() > 0) {
-                        sb.append(",");
-                    }
-                    sb.append(child.title);
-                }
-                c.tag = sb.toString();
-            }
-        }
-    }
-
-    public boolean goBack() {
-        if (!categoriesStack.isEmpty()) {
-            Category selectedCategory = findCategory(selectedCategoryId);
-            if (selectedCategory != null) {
-                selectedCategoryId = selectedCategory.getParentId();
-            }
-            categories = categoriesStack.pop();
-            return true;
-        }
-        return false;
-    }
-
-    public boolean canGoBack() {
-        return !categoriesStack.isEmpty();
-    }
-
-    public boolean navigateTo(long categoryId) {
-        Category selectedCategory = findCategory(categoryId);
-        if (selectedCategory != null) {
-            selectedCategoryId = selectedCategory.id;
-            if (selectedCategory.hasChildren()) {
-                categoriesStack.push(categories);
-                categories = selectedCategory.children;
-                tagCategories(selectedCategory);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private Category findCategory(long categoryId) {
-        for (Category category : categories) {
-            if (category.id == categoryId) {
-                return category;
-            }
-        }
-        return null;
-    }
-
-    public boolean isSelected(long categoryId) {
-        return selectedCategoryId == categoryId;
-    }
-    
-    public List<Category> getSelectedRoots() {
-        return categories.getRoots();
-    }
-
-    public void addSplitCategoryToTheTop() {
-        Category splitCategory = db.getCategoryWithParent(Category.SPLIT_CATEGORY_ID);
-        categories.insertAtTop(splitCategory);
     }
 
     public void separateIncomeAndExpense() {
@@ -167,7 +140,38 @@ public class CategoryTreeNavigator {
         categories = newCategories;
     }
 
-    public long getExcludedTreeId() {
-        return excludedTreeId;
+    public void tagCategories(Category parent) {
+        if (categories.size() > 0 && categories.getAt(0).id != parent.id) {
+            Category copy = new Category();
+            copy.id = parent.id;
+            copy.title = parent.title;
+            if (parent.isIncome()) {
+                copy.makeThisCategoryIncome();
+            }
+            categories.insertAtTop(copy);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Category c : categories) {
+            if (c.tag == null && c.hasChildren()) {
+                sb.setLength(0);
+                CategoryTree<Category> children = c.children;
+                for (Category child : children) {
+                    if (sb.length() > 0) {
+                        sb.append(",");
+                    }
+                    sb.append(child.title);
+                }
+                c.tag = sb.toString();
+            }
+        }
+    }
+
+    private Category findCategory(long categoryId) {
+        for (Category category : categories) {
+            if (category.id == categoryId) {
+                return category;
+            }
+        }
+        return null;
     }
 }

@@ -9,7 +9,6 @@
 package ru.orangesoftware.financisto.filter;
 
 import android.content.Intent;
-
 import ru.orangesoftware.financisto.blotter.BlotterFilter;
 import ru.orangesoftware.orb.Expression;
 import ru.orangesoftware.orb.Expressions;
@@ -21,16 +20,31 @@ import ru.orangesoftware.orb.Expressions;
  */
 public class Criteria {
 
+    public final String columnName;
+
+    public final WhereFilter.Operation operation;
+
+    public final String[] values;
+
+    public static Criteria btw(String column, String value1, String value2) {
+        return new Criteria(column, WhereFilter.Operation.BTW, value1, value2);
+    }
+
     public static Criteria eq(String column, String value) {
         return new Criteria(column, WhereFilter.Operation.EQ, value);
     }
 
-    public static Criteria neq(String column, String value) {
-        return new Criteria(column, WhereFilter.Operation.NEQ, value);
-    }
-
-    public static Criteria btw(String column, String value1, String value2) {
-        return new Criteria(column, WhereFilter.Operation.BTW, value1, value2);
+    public static Criteria fromStringExtra(String extra) {
+        String[] a = extra.split(",");
+        if (BlotterFilter.DATETIME.equals(a[0])) {
+            return DateTimeCriteria.fromStringExtra(extra);
+        } else if (BlotterFilter.CATEGORY_ID.equals(a[0])) {
+            return SingleCategoryCriteria.fromStringExtra(extra);
+        } else {
+            String[] values = new String[a.length - 2];
+            System.arraycopy(a, 2, values, 0, values.length);
+            return new Criteria(a[0], WhereFilter.Operation.valueOf(a[1]), values);
+        }
     }
 
     public static Criteria gt(String column, String value) {
@@ -41,14 +55,6 @@ public class Criteria {
         return new Criteria(column, WhereFilter.Operation.GTE, value);
     }
 
-    public static Criteria lt(String column, String value) {
-        return new Criteria(column, WhereFilter.Operation.LT, value);
-    }
-
-    public static Criteria lte(String column, String value) {
-        return new Criteria(column, WhereFilter.Operation.LTE, value);
-    }
-
     public static Criteria isNull(String column) {
         return new Criteria(column, WhereFilter.Operation.ISNULL);
     }
@@ -57,13 +63,21 @@ public class Criteria {
         return new Criteria(column, WhereFilter.Operation.LIKE, text);
     }
 
+    public static Criteria lt(String column, String value) {
+        return new Criteria(column, WhereFilter.Operation.LT, value);
+    }
+
+    public static Criteria lte(String column, String value) {
+        return new Criteria(column, WhereFilter.Operation.LTE, value);
+    }
+
+    public static Criteria neq(String column, String value) {
+        return new Criteria(column, WhereFilter.Operation.NEQ, value);
+    }
+
     public static Criteria raw(String text) {
         return new Criteria("(" + text + ")", WhereFilter.Operation.NOPE);
     }
-
-    public final String columnName;
-    public final WhereFilter.Operation operation;
-    public final String[] values;
 
     public Criteria(String columnName, WhereFilter.Operation operation, String... values) {
         this.columnName = columnName;
@@ -71,8 +85,55 @@ public class Criteria {
         this.values = values;
     }
 
+    public int getIntValue() {
+        return values.length > 0 ? Integer.parseInt(values[0]) : -1;
+    }
+
+    public long getLongValue1() {
+        return values.length > 0 ? Long.parseLong(values[0]) : -1;
+    }
+
+    public long getLongValue2() {
+        return values.length > 1 ? Long.parseLong(values[1]) : -1;
+    }
+
+    public String getSelection() {
+        return columnName + " " + operation.op;
+    }
+
+    public String[] getSelectionArgs() {
+        return values;
+    }
+
+    public String getStringValue() {
+        return values.length > 0 ? values[0] : "";
+    }
+
     public boolean isNull() {
         return operation == WhereFilter.Operation.ISNULL;
+    }
+
+    public int size() {
+        return values != null ? values.length : 0;
+    }
+
+    public void toIntent(String title, Intent intent) {
+        intent.putExtra(WhereFilter.TITLE_EXTRA, title);
+        intent.putExtra(WhereFilter.FILTER_EXTRA, new String[]{toStringExtra()});
+    }
+
+    public String toStringExtra() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(columnName).append(",");
+        sb.append(operation.name()).append(",");
+        String[] values = this.values;
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) {
+                sb.append(",");
+            }
+            sb.append(values[i]);
+        }
+        return sb.toString();
     }
 
     public Expression toWhereExpression() {
@@ -93,66 +154,6 @@ public class Criteria {
                 return Expressions.like(columnName, getStringValue());
         }
         throw new IllegalArgumentException();
-    }
-
-    public String toStringExtra() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(columnName).append(",");
-        sb.append(operation.name()).append(",");
-        String[] values = this.values;
-        for (int i = 0; i < values.length; i++) {
-            if (i > 0) {
-                sb.append(",");
-            }
-            sb.append(values[i]);
-        }
-        return sb.toString();
-    }
-
-    public static Criteria fromStringExtra(String extra) {
-        String[] a = extra.split(",");
-        if (BlotterFilter.DATETIME.equals(a[0])) {
-            return DateTimeCriteria.fromStringExtra(extra);
-        } else if (BlotterFilter.CATEGORY_ID.equals(a[0])) {
-            return SingleCategoryCriteria.fromStringExtra(extra);
-        } else {
-            String[] values = new String[a.length - 2];
-            System.arraycopy(a, 2, values, 0, values.length);
-            return new Criteria(a[0], WhereFilter.Operation.valueOf(a[1]), values);
-        }
-    }
-
-    public String getStringValue() {
-        return values.length > 0 ? values[0] : "";
-    }
-
-    public int getIntValue() {
-        return values.length > 0 ? Integer.parseInt(values[0]) : -1;
-    }
-
-    public long getLongValue1() {
-        return values.length > 0 ? Long.parseLong(values[0]) : -1;
-    }
-
-    public long getLongValue2() {
-        return values.length > 1 ? Long.parseLong(values[1]) : -1;
-    }
-
-    public String getSelection() {
-        return columnName + " " + operation.op;
-    }
-
-    public int size() {
-        return values != null ? values.length : 0;
-    }
-
-    public String[] getSelectionArgs() {
-        return values;
-    }
-
-    public void toIntent(String title, Intent intent) {
-        intent.putExtra(WhereFilter.TITLE_EXTRA, title);
-        intent.putExtra(WhereFilter.FILTER_EXTRA, new String[]{toStringExtra()});
     }
 
 }

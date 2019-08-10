@@ -1,5 +1,7 @@
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.utils.Utils.text;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -17,8 +19,6 @@ import ru.orangesoftware.financisto.utils.CurrencyCache;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 import ru.orangesoftware.financisto.utils.Utils;
 
-import static ru.orangesoftware.financisto.utils.Utils.text;
-
 /**
  * Created by IntelliJ IDEA.
  * User: Denis Solonenko
@@ -26,17 +26,21 @@ import static ru.orangesoftware.financisto.utils.Utils.text;
  */
 public abstract class AbstractSplitActivity extends AbstractActivity {
 
-    protected EditText noteText;
-    protected TextView unsplitAmountText;
-
     protected Account fromAccount;
+
+    protected EditText noteText;
+
     protected Currency originalCurrency;
-    protected Utils utils;
+
     protected Transaction split;
 
-    private ProjectSelector projectSelector;
+    protected TextView unsplitAmountText;
+
+    protected Utils utils;
 
     private final int layoutId;
+
+    private ProjectSelector projectSelector;
 
     protected AbstractSplitActivity(int layoutId) {
         this.layoutId = layoutId;
@@ -53,7 +57,7 @@ public abstract class AbstractSplitActivity extends AbstractActivity {
         projectSelector = new ProjectSelector(this, db, x);
         projectSelector.fetchEntities();
 
-        utils  = new Utils(this);
+        utils = new Utils(this);
         split = Transaction.fromIntentAsSplit(getIntent());
         if (split.fromAccountId > 0) {
             fromAccount = db.getAccount(split.fromAccountId);
@@ -62,51 +66,11 @@ public abstract class AbstractSplitActivity extends AbstractActivity {
             originalCurrency = CurrencyCache.getCurrency(db, split.originalCurrencyId);
         }
 
-        LinearLayout layout = (LinearLayout)findViewById(R.id.list);
+        LinearLayout layout = (LinearLayout) findViewById(R.id.list);
 
         createUI(layout);
         createCommonUI(layout);
         updateUI();
-    }
-
-    private void createCommonUI(LinearLayout layout) {
-        unsplitAmountText = x.addInfoNode(layout, R.id.add_split, R.string.unsplit_amount, "0");
-
-        noteText = new EditText(this);
-        x.addEditNode(layout, R.string.note, noteText);
-
-        projectSelector.createNode(layout);
-
-        Button bSave = (Button) findViewById(R.id.bSave);
-		bSave.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View arg0) {
-                saveAndFinish();
-            }
-        });
-
-        Button bCancel = (Button) findViewById(R.id.bCancel);
-		bCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View arg0) {
-                setResult(RESULT_CANCELED);
-                finish();
-            }
-        });
-    }
-
-    protected abstract void fetchData();
-
-    protected abstract void createUI(LinearLayout layout);
-
-    @Override
-    protected void onClick(View v, int id) {
-        projectSelector.onClick(id);
-    }
-
-    @Override
-    public void onSelectedPos(int id, int selectedPos) {
-        projectSelector.onSelectedPos(id, selectedPos);
     }
 
     @Override
@@ -115,13 +79,33 @@ public abstract class AbstractSplitActivity extends AbstractActivity {
         projectSelector.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void saveAndFinish() {
-        Intent data = new Intent();
-        if (updateFromUI()) {
-            split.toIntentAsSplit(data);
-            setResult(Activity.RESULT_OK, data);
-            finish();
-        }
+    @Override
+    public void onSelectedPos(int id, int selectedPos) {
+        projectSelector.onSelectedPos(id, selectedPos);
+    }
+
+    protected abstract void createUI(LinearLayout layout);
+
+    protected abstract void fetchData();
+
+    protected Currency getCurrency() {
+        return originalCurrency != null ? originalCurrency
+                : (fromAccount != null ? fromAccount.currency : Currency.defaultCurrency());
+    }
+
+    @Override
+    protected void onClick(View v, int id) {
+        projectSelector.onClick(id);
+    }
+
+    protected void setUnsplitAmount(long amount) {
+        Currency currency = getCurrency();
+        utils.setAmountText(unsplitAmountText, currency, amount, false);
+    }
+
+    @Override
+    protected boolean shouldLock() {
+        return MyPreferences.isPinProtectedNewTransaction(this);
     }
 
     protected boolean updateFromUI() {
@@ -135,22 +119,43 @@ public abstract class AbstractSplitActivity extends AbstractActivity {
         setNote(split.note);
     }
 
+    private void createCommonUI(LinearLayout layout) {
+        unsplitAmountText = x.addInfoNode(layout, R.id.add_split, R.string.unsplit_amount, "0");
+
+        noteText = new EditText(this);
+        x.addEditNode(layout, R.string.note, noteText);
+
+        projectSelector.createNode(layout);
+
+        Button bSave = (Button) findViewById(R.id.bSave);
+        bSave.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View arg0) {
+                saveAndFinish();
+            }
+        });
+
+        Button bCancel = (Button) findViewById(R.id.bCancel);
+        bCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View arg0) {
+                setResult(RESULT_CANCELED);
+                finish();
+            }
+        });
+    }
+
+    private void saveAndFinish() {
+        Intent data = new Intent();
+        if (updateFromUI()) {
+            split.toIntentAsSplit(data);
+            setResult(Activity.RESULT_OK, data);
+            finish();
+        }
+    }
+
     private void setNote(String note) {
         noteText.setText(note);
-    }
-
-    protected void setUnsplitAmount(long amount) {
-        Currency currency = getCurrency();
-        utils.setAmountText(unsplitAmountText, currency, amount, false);
-    }
-
-    protected Currency getCurrency() {
-        return originalCurrency != null ? originalCurrency : (fromAccount != null ? fromAccount.currency : Currency.defaultCurrency());
-    }
-
-    @Override
-    protected boolean shouldLock() {
-        return MyPreferences.isPinProtectedNewTransaction(this);
     }
 
 }

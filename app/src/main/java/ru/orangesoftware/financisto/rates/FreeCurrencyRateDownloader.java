@@ -1,9 +1,7 @@
 package ru.orangesoftware.financisto.rates;
 
 import android.util.Log;
-
 import org.json.JSONObject;
-
 import ru.orangesoftware.financisto.http.HttpClientWrapper;
 import ru.orangesoftware.financisto.model.Currency;
 
@@ -16,6 +14,7 @@ public class FreeCurrencyRateDownloader extends AbstractMultipleRatesDownloader 
     private static final String TAG = FreeCurrencyRateDownloader.class.getSimpleName();
 
     private final HttpClientWrapper client;
+
     private final long dateTime;
 
     public FreeCurrencyRateDownloader(HttpClientWrapper client, long dateTime) {
@@ -31,7 +30,7 @@ public class FreeCurrencyRateDownloader extends AbstractMultipleRatesDownloader 
             rate.rate = Double.parseDouble(s);
             return rate;
         } catch (Exception e) {
-            rate.error = "Unable to get exchange rates: "+e.getMessage();
+            rate.error = "Unable to get exchange rates: " + e.getMessage();
         }
         return rate;
     }
@@ -41,12 +40,9 @@ public class FreeCurrencyRateDownloader extends AbstractMultipleRatesDownloader 
         throw new UnsupportedOperationException("Not yet implemented");
     }
 
-    private String getResponse(Currency fromCurrency, Currency toCurrency) throws Exception {
-        String url = buildUrl(fromCurrency, toCurrency);
-        Log.i(TAG, url);
-        JSONObject jsonObject = client.getAsJson(url);
-        Log.i(TAG, jsonObject.getString(toCurrency.name));
-        return jsonObject.getString(toCurrency.name);
+    private String buildUrl(Currency fromCurrency, Currency toCurrency) {
+        return "http://freecurrencyrates.com/api/action.php?s=fcr&iso=" + toCurrency.name + "&f=" + fromCurrency.name
+                + "&v=1&do=cvals";
     }
 
     private ExchangeRate createRate(Currency fromCurrency, Currency toCurrency) {
@@ -57,7 +53,11 @@ public class FreeCurrencyRateDownloader extends AbstractMultipleRatesDownloader 
         return rate;
     }
 
-    private String buildUrl (Currency fromCurrency, Currency toCurrency) {
-        return "http://freecurrencyrates.com/api/action.php?s=fcr&iso="+toCurrency.name+"&f="+fromCurrency.name+"&v=1&do=cvals";
+    private String getResponse(Currency fromCurrency, Currency toCurrency) throws Exception {
+        String url = buildUrl(fromCurrency, toCurrency);
+        Log.i(TAG, url);
+        JSONObject jsonObject = client.getAsJson(url);
+        Log.i(TAG, jsonObject.getString(toCurrency.name));
+        return jsonObject.getString(toCurrency.name);
     }
 }

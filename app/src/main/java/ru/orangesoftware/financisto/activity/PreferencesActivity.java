@@ -10,6 +10,12 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.activity;
 
+import static android.Manifest.permission.GET_ACCOUNTS;
+import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
+import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermissions;
+import static ru.orangesoftware.financisto.utils.FingerprintUtils.fingerprintUnavailable;
+import static ru.orangesoftware.financisto.utils.FingerprintUtils.reasonWhyFingerprintUnavailable;
+
 import android.Manifest;
 import android.accounts.Account;
 import android.accounts.AccountManager;
@@ -25,9 +31,7 @@ import android.preference.PreferenceActivity;
 import android.preference.PreferenceScreen;
 import android.util.Log;
 import android.widget.Toast;
-
 import com.google.android.gms.common.AccountPicker;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.dialog.FolderBrowser;
 import ru.orangesoftware.financisto.export.Export;
@@ -36,23 +40,15 @@ import ru.orangesoftware.financisto.rates.ExchangeRateProviderFactory;
 import ru.orangesoftware.financisto.utils.MyPreferences;
 import ru.orangesoftware.financisto.utils.PinProtection;
 
-import static android.Manifest.permission.GET_ACCOUNTS;
-import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
-import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermissions;
-import static ru.orangesoftware.financisto.utils.FingerprintUtils.fingerprintUnavailable;
-import static ru.orangesoftware.financisto.utils.FingerprintUtils.reasonWhyFingerprintUnavailable;
-
 public class PreferencesActivity extends PreferenceActivity {
 
     private static final int SELECT_DATABASE_FOLDER = 100;
+
     private static final int CHOOSE_ACCOUNT = 101;
 
-    Preference pOpenExchangeRatesAppId;
+    Dropbox dropbox = new Dropbox(this);
 
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
-    }
+    Preference pOpenExchangeRatesAppId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,69 +110,14 @@ public class PreferencesActivity extends PreferenceActivity {
         });
         Preference useFingerprint = preferenceScreen.findPreference("pin_protection_use_fingerprint");
         if (fingerprintUnavailable(this)) {
-            useFingerprint.setSummary(getString(R.string.fingerprint_unavailable, reasonWhyFingerprintUnavailable(this)));
+            useFingerprint
+                    .setSummary(getString(R.string.fingerprint_unavailable, reasonWhyFingerprintUnavailable(this)));
             useFingerprint.setEnabled(false);
         }
         linkToDropbox();
         setCurrentDatabaseBackupFolder();
         enableOpenExchangeApp();
         selectAccount();
-    }
-
-    private void chooseAccount() {
-        try {
-            if (isRequestingPermissions(this, GET_ACCOUNTS, "android.permission.USE_CREDENTIALS")) {
-                return;
-            }
-            Account selectedAccount = getSelectedAccount();
-            Intent intent = AccountPicker.newChooseAccountIntent(selectedAccount, null,
-                    new String[]{"com.google"}, true, null, null, null, null);
-            startActivityForResult(intent, CHOOSE_ACCOUNT);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, R.string.google_drive_account_select_error, Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private Account getSelectedAccount() {
-        String accountName = MyPreferences.getGoogleDriveAccount(this);
-        if (accountName != null) {
-            AccountManager accountManager = AccountManager.get(this);
-            Account[] accounts = accountManager.getAccountsByType("com.google");
-            for (Account account : accounts) {
-                if (accountName.equals(account.name)) {
-                    return account;
-                }
-            }
-        }
-        return null;
-    }
-
-    private void linkToDropbox() {
-        boolean dropboxAuthorized = MyPreferences.isDropboxAuthorized(this);
-        PreferenceScreen preferenceScreen = getPreferenceScreen();
-        preferenceScreen.findPreference("dropbox_unlink").setEnabled(dropboxAuthorized);
-        preferenceScreen.findPreference("dropbox_upload_backup").setEnabled(dropboxAuthorized);
-        preferenceScreen.findPreference("dropbox_upload_autobackup").setEnabled(dropboxAuthorized);
-    }
-
-    private void selectDatabaseBackupFolder() {
-        Intent intent = new Intent(this, FolderBrowser.class);
-        intent.putExtra(FolderBrowser.PATH, getDatabaseBackupFolder());
-        startActivityForResult(intent, SELECT_DATABASE_FOLDER);
-    }
-
-    private void enableOpenExchangeApp() {
-        pOpenExchangeRatesAppId.setEnabled(MyPreferences.isOpenExchangeRatesProviderSelected(this));
-    }
-
-    private String getDatabaseBackupFolder() {
-        return Export.getBackupFolder(this).getAbsolutePath();
-    }
-
-    private void setCurrentDatabaseBackupFolder() {
-        Preference pDatabaseBackupFolder = getPreferenceScreen().findPreference("database_backup_folder");
-        String summary = getString(R.string.database_backup_folder_summary, getDatabaseBackupFolder());
-        pDatabaseBackupFolder.setSummary(summary);
     }
 
     @Override
@@ -204,21 +145,52 @@ public class PreferencesActivity extends PreferenceActivity {
         }
     }
 
-    private void selectAccount() {
-        Preference pDriveAccount = getPreferenceScreen().findPreference("google_drive_backup_account");
-        Account account = getSelectedAccount();
-        if (account != null) {
-            pDriveAccount.setSummary(account.name);
-        }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        PinProtection.unlock(this);
+        dropbox.completeAuth();
+        linkToDropbox();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        PinProtection.lock(this);
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
     }
 
     private void addShortcut(String activity, int nameId, int iconId) {
-        Intent intent = createShortcutIntent(activity, getString(nameId), Intent.ShortcutIconResource.fromContext(this, iconId),
+        Intent intent = createShortcutIntent(activity, getString(nameId),
+                Intent.ShortcutIconResource.fromContext(this, iconId),
                 "com.android.launcher.action.INSTALL_SHORTCUT");
         sendBroadcast(intent);
     }
 
-    private Intent createShortcutIntent(String activity, String shortcutName, ShortcutIconResource shortcutIcon, String action) {
+    private void authDropbox() {
+        dropbox.startAuth();
+    }
+
+    private void chooseAccount() {
+        try {
+            if (isRequestingPermissions(this, GET_ACCOUNTS, "android.permission.USE_CREDENTIALS")) {
+                return;
+            }
+            Account selectedAccount = getSelectedAccount();
+            Intent intent = AccountPicker.newChooseAccountIntent(selectedAccount, null,
+                    new String[]{"com.google"}, true, null, null, null, null);
+            startActivityForResult(intent, CHOOSE_ACCOUNT);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.google_drive_account_select_error, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private Intent createShortcutIntent(String activity, String shortcutName, ShortcutIconResource shortcutIcon,
+            String action) {
         Intent shortcutIntent = new Intent();
         shortcutIntent.setComponent(new ComponentName(this.getPackageName(), activity));
         shortcutIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -231,29 +203,59 @@ public class PreferencesActivity extends PreferenceActivity {
         return intent;
     }
 
-    Dropbox dropbox = new Dropbox(this);
-
-    private void authDropbox() {
-        dropbox.startAuth();
-    }
-
     private void deAuthDropbox() {
         dropbox.deAuth();
         linkToDropbox();
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        PinProtection.lock(this);
+    private void enableOpenExchangeApp() {
+        pOpenExchangeRatesAppId.setEnabled(MyPreferences.isOpenExchangeRatesProviderSelected(this));
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        PinProtection.unlock(this);
-        dropbox.completeAuth();
-        linkToDropbox();
+    private String getDatabaseBackupFolder() {
+        return Export.getBackupFolder(this).getAbsolutePath();
+    }
+
+    private Account getSelectedAccount() {
+        String accountName = MyPreferences.getGoogleDriveAccount(this);
+        if (accountName != null) {
+            AccountManager accountManager = AccountManager.get(this);
+            Account[] accounts = accountManager.getAccountsByType("com.google");
+            for (Account account : accounts) {
+                if (accountName.equals(account.name)) {
+                    return account;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void linkToDropbox() {
+        boolean dropboxAuthorized = MyPreferences.isDropboxAuthorized(this);
+        PreferenceScreen preferenceScreen = getPreferenceScreen();
+        preferenceScreen.findPreference("dropbox_unlink").setEnabled(dropboxAuthorized);
+        preferenceScreen.findPreference("dropbox_upload_backup").setEnabled(dropboxAuthorized);
+        preferenceScreen.findPreference("dropbox_upload_autobackup").setEnabled(dropboxAuthorized);
+    }
+
+    private void selectAccount() {
+        Preference pDriveAccount = getPreferenceScreen().findPreference("google_drive_backup_account");
+        Account account = getSelectedAccount();
+        if (account != null) {
+            pDriveAccount.setSummary(account.name);
+        }
+    }
+
+    private void selectDatabaseBackupFolder() {
+        Intent intent = new Intent(this, FolderBrowser.class);
+        intent.putExtra(FolderBrowser.PATH, getDatabaseBackupFolder());
+        startActivityForResult(intent, SELECT_DATABASE_FOLDER);
+    }
+
+    private void setCurrentDatabaseBackupFolder() {
+        Preference pDatabaseBackupFolder = getPreferenceScreen().findPreference("database_backup_folder");
+        String summary = getString(R.string.database_backup_folder_summary, getDatabaseBackupFolder());
+        pDatabaseBackupFolder.setSummary(summary);
     }
 
 }

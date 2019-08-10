@@ -19,8 +19,9 @@ import ru.orangesoftware.financisto.model.Currency;
  */
 public class CurrencySelectorTest extends AbstractDbTest {
 
-    CurrencySelector selector;
     long currencyId;
+
+    CurrencySelector selector;
 
     @Override
     public void setUp() throws Exception {

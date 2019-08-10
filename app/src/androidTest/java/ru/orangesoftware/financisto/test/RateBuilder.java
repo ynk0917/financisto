@@ -20,6 +20,7 @@ import ru.orangesoftware.financisto.rates.ExchangeRate;
 public class RateBuilder {
 
     private final DatabaseAdapter db;
+
     private final ExchangeRate r = new ExchangeRate();
 
     public static RateBuilder inMemory() {
@@ -34,29 +35,8 @@ public class RateBuilder {
         this.db = db;
     }
 
-    public RateBuilder from(Currency c) {
-        r.fromCurrencyId = c.id;
-        return this;
-    }
-
-    public RateBuilder to(Currency c) {
-        r.toCurrencyId = c.id;
-        return this;
-    }
-
-
     public RateBuilder at(DateTime date) {
         r.date = date.asLong();
-        return this;
-    }
-
-    public RateBuilder rate(float rate) {
-        r.rate = rate;
-        return this;
-    }
-
-    public RateBuilder notOK() {
-        r.error = "Exception";
         return this;
     }
 
@@ -65,6 +45,26 @@ public class RateBuilder {
             db.saveRate(r);
         }
         return r;
+    }
+
+    public RateBuilder from(Currency c) {
+        r.fromCurrencyId = c.id;
+        return this;
+    }
+
+    public RateBuilder notOK() {
+        r.error = "Exception";
+        return this;
+    }
+
+    public RateBuilder rate(float rate) {
+        r.rate = rate;
+        return this;
+    }
+
+    public RateBuilder to(Currency c) {
+        r.toCurrencyId = c.id;
+        return this;
     }
 
 }

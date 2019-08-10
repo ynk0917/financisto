@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
 public @interface JoinColumn {
 
     String name();
-    
+
     boolean required() default true;
 
 }

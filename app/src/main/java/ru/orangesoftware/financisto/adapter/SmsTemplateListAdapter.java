@@ -4,7 +4,7 @@
  * are made available under the terms of the GNU Public License v2.0
  * which accompanies this distribution, and is available at
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * 
+ *
  * Contributors:
  *     Denis Solonenko - initial API and implementation
  ******************************************************************************/
@@ -20,17 +20,17 @@ import ru.orangesoftware.financisto.utils.StringUtil;
 
 public class SmsTemplateListAdapter extends AbstractGenericListAdapter {
 
-	public SmsTemplateListAdapter(DatabaseAdapter db, Context context, Cursor c) {
-		super(db, context, c);
-	}
+    public SmsTemplateListAdapter(DatabaseAdapter db, Context context, Cursor c) {
+        super(db, context, c);
+    }
 
-	@Override
-	protected void bindView(GenericViewHolder v, Context context, Cursor cursor) {
-		SmsTemplate a = SmsTemplate.fromListCursor(cursor);
-		v.lineView.setText(a.title);
-		v.numberView.setText(StringUtil.getShortString(a.template, 40));
-		v.amountView.setVisibility(View.VISIBLE);
-		v.amountView.setText(Category.getTitle(a.categoryName, a.categoryLevel));
-	}
+    @Override
+    protected void bindView(GenericViewHolder v, Context context, Cursor cursor) {
+        SmsTemplate a = SmsTemplate.fromListCursor(cursor);
+        v.lineView.setText(a.title);
+        v.numberView.setText(StringUtil.getShortString(a.template, 40));
+        v.amountView.setVisibility(View.VISIBLE);
+        v.amountView.setText(Category.getTitle(a.categoryName, a.categoryLevel));
+    }
 
 }

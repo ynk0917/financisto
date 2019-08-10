@@ -10,12 +10,14 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.backup;
 
+import static ru.orangesoftware.financisto.backup.Backup.BACKUP_TABLES;
+import static ru.orangesoftware.financisto.backup.Backup.tableHasSystemIds;
+
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
@@ -23,17 +25,35 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-
 import ru.orangesoftware.financisto.export.Export;
 import ru.orangesoftware.financisto.utils.Utils;
-
-import static ru.orangesoftware.financisto.backup.Backup.BACKUP_TABLES;
-import static ru.orangesoftware.financisto.backup.Backup.tableHasSystemIds;
 
 public class DatabaseExport extends Export {
 
     private final Context context;
+
     private final SQLiteDatabase db;
+
+    public static void copy(File source, File dest) throws IOException {
+        FileChannel in = null, out = null;
+        try {
+            in = new FileInputStream(source).getChannel();
+            out = new FileOutputStream(dest).getChannel();
+
+            long size = in.size();
+            MappedByteBuffer buf = in.map(FileChannel.MapMode.READ_ONLY, 0, size);
+
+            out.write(buf);
+
+        } finally {
+            if (in != null) {
+                in.close();
+            }
+            if (out != null) {
+                out.close();
+            }
+        }
+    }
 
     public DatabaseExport(Context context, SQLiteDatabase db, boolean useGZip) {
         super(context, useGZip);
@@ -44,6 +64,18 @@ public class DatabaseExport extends Export {
     @Override
     protected String getExtension() {
         return ".backup";
+    }
+
+    @Override
+    protected void writeBody(BufferedWriter bw) throws IOException {
+        for (String tableName : BACKUP_TABLES) {
+            exportTable(bw, tableName);
+        }
+    }
+
+    @Override
+    protected void writeFooter(BufferedWriter bw) throws IOException {
+        bw.write("#END");
     }
 
     @Override
@@ -62,35 +94,6 @@ public class DatabaseExport extends Export {
         bw.write(String.valueOf(db.getVersion()));
         bw.write("\n");
         bw.write("#START\n");
-    }
-
-    public static void copy(File source, File dest) throws IOException {
-        FileChannel in = null, out = null;
-        try {
-            in = new FileInputStream(source).getChannel();
-            out = new FileOutputStream(dest).getChannel();
-
-            long size = in.size();
-            MappedByteBuffer buf = in.map(FileChannel.MapMode.READ_ONLY, 0, size);
-
-            out.write(buf);
-
-        } finally {
-            if (in != null) in.close();
-            if (out != null) out.close();
-        }
-    }
-
-    @Override
-    protected void writeBody(BufferedWriter bw) throws IOException {
-        for (String tableName : BACKUP_TABLES) {
-            exportTable(bw, tableName);
-        }
-    }
-
-    @Override
-    protected void writeFooter(BufferedWriter bw) throws IOException {
-        bw.write("#END");
     }
 
     private void exportTable(BufferedWriter bw, String tableName) throws IOException {

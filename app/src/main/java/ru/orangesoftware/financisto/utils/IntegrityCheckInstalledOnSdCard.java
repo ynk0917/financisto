@@ -1,10 +1,9 @@
 package ru.orangesoftware.financisto.utils;
 
-import android.content.Context;
-
-import ru.orangesoftware.financisto.R;
-
 import static ru.orangesoftware.financisto.utils.AndroidUtils.isInstalledOnSdCard;
+
+import android.content.Context;
+import ru.orangesoftware.financisto.R;
 
 public class IntegrityCheckInstalledOnSdCard implements IntegrityCheck {
 

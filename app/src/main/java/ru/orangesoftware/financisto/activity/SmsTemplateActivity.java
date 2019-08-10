@@ -10,6 +10,8 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.activity.CategorySelector.SelectorType.PLAIN;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -26,7 +28,6 @@ import android.widget.TextView;
 import android.widget.ToggleButton;
 import java.util.ArrayList;
 import ru.orangesoftware.financisto.R;
-import static ru.orangesoftware.financisto.activity.CategorySelector.SelectorType.PLAIN;
 import ru.orangesoftware.financisto.adapter.MyEntityAdapter;
 import ru.orangesoftware.financisto.db.DatabaseAdapter;
 import ru.orangesoftware.financisto.db.DatabaseHelper.SmsTemplateColumns;
@@ -39,22 +40,25 @@ import ru.orangesoftware.financisto.utils.Utils;
 
 public class SmsTemplateActivity extends AbstractActivity implements CategorySelector.CategorySelectorListener {
 
-    private DatabaseAdapter db;
-
-    private EditText smsNumber;
-    private EditText templateTxt;
-    private EditText exampleTxt;
     private Spinner accountSpinner;
-    private ToggleButton toggleIncome;
+
     private ArrayList<Account> accounts;
+
     private long categoryId = -1;
-    private SmsTemplate smsTemplate = new SmsTemplate();
+
     private CategorySelector categorySelector;
 
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
-    }
+    private DatabaseAdapter db;
+
+    private EditText exampleTxt;
+
+    private EditText smsNumber;
+
+    private SmsTemplate smsTemplate = new SmsTemplate();
+
+    private EditText templateTxt;
+
+    private ToggleButton toggleIncome;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,7 +78,7 @@ public class SmsTemplateActivity extends AbstractActivity implements CategorySel
         bOK.setOnClickListener(arg0 -> {
             updateSmsTemplateFromUI();
             if (Utils.checkEditText(smsNumber, "sms number", true, 30)
-                && Utils.checkEditText(templateTxt, "sms template", true, 160)) {
+                    && Utils.checkEditText(templateTxt, "sms template", true, 160)) {
                 long id = db.saveOrUpdate(smsTemplate);
                 Intent intent = new Intent();
                 intent.putExtra(SmsTemplateColumns._id.name(), id);
@@ -95,40 +99,64 @@ public class SmsTemplateActivity extends AbstractActivity implements CategorySel
         initCategorySelector();
     }
 
-    private void initTitleAndDynamicDescription() {
-        TextView templateTitle = findViewById(R.id.sms_tpl_title);
-        final TextView templateDesc = findViewById(R.id.sms_tpl_desc);
-        templateDesc.setOnClickListener(v -> templateDesc.setVisibility(View.GONE));
-        templateTitle.setOnClickListener(v -> templateDesc.setVisibility( templateDesc.getVisibility() == View.GONE ? View.VISIBLE : View.GONE));
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        categorySelector.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void initExampleField() {
-        exampleTxt = findViewById(R.id.sms_example);
-        exampleTxt.setOnFocusChangeListener((v, hasFocus) -> exampleTxt.setAlpha(1F));
-        exampleTxt.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+    @Override
+    public void onCategorySelected(Category category, boolean selectLast) {
+        categoryId = category.id;
+    }
 
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                validateExampleAndHighlight(templateTxt.getText().toString(), s.toString());
+    @Override
+    public void onSelectedId(int id, long selectedId) {
+        categorySelector.onSelectedId(id, selectedId);
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
+    }
+
+    @Override
+    protected void onClick(View v, int id) {
+        categorySelector.onClick(id);
+    }
+
+    private void editSmsTemplate() {
+        smsNumber.setText(smsTemplate.title);
+        templateTxt.setText(smsTemplate.template);
+        selectedAccount(smsTemplate.accountId);
+        toggleIncome.setChecked(smsTemplate.isIncome);
+    }
+
+    private void fillByCallerData() {
+        final Intent intent = getIntent();
+        if (intent != null) {
+            long id = intent.getLongExtra(SmsTemplateColumns._id.name(), -1);
+            categoryId = intent.getLongExtra(SmsTemplateColumns.category_id.name(), -1);
+            if (id != -1) {
+                smsTemplate = db.load(SmsTemplate.class, id);
+                editSmsTemplate();
             }
+        }
+    }
 
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
-        templateTxt.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+    private void initAccounts() {
+        accounts = new ArrayList<>();
+        Account emptyItem = new Account();
+        emptyItem.id = -1;
+        emptyItem.title = getString(R.string.no_account);
+        accounts.add(emptyItem);
+        accounts.addAll(db.getAllAccountsList());
 
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                validateExampleAndHighlight(s.toString(), exampleTxt.getText().toString());
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
+        ArrayAdapter<Account> accountsAdapter = new MyEntityAdapter<>(this, android.R.layout.simple_spinner_item,
+                android.R.id.text1, accounts);
+        accountsAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        accountSpinner = findViewById(R.id.spinnerAccount);
+        accountSpinner.setAdapter(accountsAdapter);
     }
 
     private void initCategorySelector() {
@@ -146,23 +174,55 @@ public class SmsTemplateActivity extends AbstractActivity implements CategorySel
         }
     }
 
-    @Override
-    protected void onClick(View v, int id) {
-        categorySelector.onClick(id);
+    private void initExampleField() {
+        exampleTxt = findViewById(R.id.sms_example);
+        exampleTxt.setOnFocusChangeListener((v, hasFocus) -> exampleTxt.setAlpha(1F));
+        exampleTxt.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                validateExampleAndHighlight(templateTxt.getText().toString(), s.toString());
+            }
+        });
+        templateTxt.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                validateExampleAndHighlight(s.toString(), exampleTxt.getText().toString());
+            }
+        });
     }
 
-    private void initAccounts() {
-        accounts = new ArrayList<>();
-        Account emptyItem = new Account();
-        emptyItem.id = -1;
-        emptyItem.title = getString(R.string.no_account);
-        accounts.add(emptyItem);
-        accounts.addAll(db.getAllAccountsList());
+    private void initTitleAndDynamicDescription() {
+        TextView templateTitle = findViewById(R.id.sms_tpl_title);
+        final TextView templateDesc = findViewById(R.id.sms_tpl_desc);
+        templateDesc.setOnClickListener(v -> templateDesc.setVisibility(View.GONE));
+        templateTitle.setOnClickListener(v -> templateDesc
+                .setVisibility(templateDesc.getVisibility() == View.GONE ? View.VISIBLE : View.GONE));
+    }
 
-        ArrayAdapter<Account> accountsAdapter = new MyEntityAdapter<>(this, android.R.layout.simple_spinner_item, android.R.id.text1, accounts);
-        accountsAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        accountSpinner = findViewById(R.id.spinnerAccount);
-        accountSpinner.setAdapter(accountsAdapter);
+    private void selectedAccount(long selectedAccountId) {
+        for (int i = 0; i < accounts.size(); i++) {
+            Account a = accounts.get(i);
+            if (a.id == selectedAccountId) {
+                accountSpinner.setSelection(i);
+                break;
+            }
+        }
     }
 
     private void updateSmsTemplateFromUI() {
@@ -172,51 +232,6 @@ public class SmsTemplateActivity extends AbstractActivity implements CategorySel
         smsTemplate.isIncome = toggleIncome.isChecked();
         smsTemplate.accountId = accountSpinner.getSelectedItemId();
 
-    }
-
-    private void fillByCallerData() {
-        final Intent intent = getIntent();
-        if (intent != null) {
-            long id = intent.getLongExtra(SmsTemplateColumns._id.name(), -1);
-            categoryId = intent.getLongExtra(SmsTemplateColumns.category_id.name(), -1);
-            if (id != -1) {
-                smsTemplate = db.load(SmsTemplate.class, id);
-                editSmsTemplate();
-            }
-        }
-    }
-
-    private void editSmsTemplate() {
-        smsNumber.setText(smsTemplate.title);
-        templateTxt.setText(smsTemplate.template);
-        selectedAccount(smsTemplate.accountId);
-        toggleIncome.setChecked(smsTemplate.isIncome);
-    }
-
-    private void selectedAccount(long selectedAccountId) {
-        for (int i=0; i<accounts.size(); i++) {
-            Account a = accounts.get(i);
-            if (a.id == selectedAccountId) {
-                accountSpinner.setSelection(i);
-                break;
-            }
-        }
-    }
-
-    @Override
-    public void onSelectedId(int id, long selectedId) {
-        categorySelector.onSelectedId(id, selectedId);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        categorySelector.onActivityResult(requestCode, resultCode, data);
-    }
-
-    @Override
-    public void onCategorySelected(Category category, boolean selectLast) {
-        categoryId = category.id;
     }
 
     private void validateExampleAndHighlight(String template, String example) {

@@ -25,32 +25,19 @@ import ru.orangesoftware.financisto.utils.MyPreferences;
  * Date: 3/24/11 10:20 PM
  */
 public class AboutActivity extends AppCompatActivity {
-    private static final int ABOUT_TAB_COUNT = 3;
-
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
-    }
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState ) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.view_pager_activity);
-        String[] tabTitles = new String[ABOUT_TAB_COUNT];
-        tabTitles[0] = getString(R.string.about);
-        tabTitles[1] = getString(R.string.whats_new);
-        tabTitles[2] = getString(R.string.license);
-        ViewPager viewPager = findViewById(R.id.view_pager);
-        MyFragmentPagerAdapter adapter = new MyFragmentPagerAdapter(getFragmentManager(), tabTitles);
-        viewPager.setAdapter(adapter);
-    }
 
     private static class MyFragmentPagerAdapter extends FragmentPagerAdapter {
+
         private final String[] mTabTitles;
 
         MyFragmentPagerAdapter(FragmentManager fragmentManager, String[] tabTitles) {
             super(fragmentManager);
             mTabTitles = tabTitles;
+        }
+
+        @Override
+        public int getCount() {
+            return mTabTitles.length;
         }
 
         @Override
@@ -77,10 +64,25 @@ public class AboutActivity extends AppCompatActivity {
         public CharSequence getPageTitle(int position) {
             return mTabTitles[position];
         }
+    }
 
-        @Override
-        public int getCount() {
-            return mTabTitles.length;
-        }
+    private static final int ABOUT_TAB_COUNT = 3;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.view_pager_activity);
+        String[] tabTitles = new String[ABOUT_TAB_COUNT];
+        tabTitles[0] = getString(R.string.about);
+        tabTitles[1] = getString(R.string.whats_new);
+        tabTitles[2] = getString(R.string.license);
+        ViewPager viewPager = findViewById(R.id.view_pager);
+        MyFragmentPagerAdapter adapter = new MyFragmentPagerAdapter(getFragmentManager(), tabTitles);
+        viewPager.setAdapter(adapter);
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
     }
 }

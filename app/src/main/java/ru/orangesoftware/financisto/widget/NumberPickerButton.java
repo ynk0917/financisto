@@ -4,7 +4,7 @@
  * are made available under the terms of the GNU Public License v2.0
  * which accompanies this distribution, and is available at
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * 
+ *
  * Contributors:
  *     Denis Solonenko - initial API and implementation
  ******************************************************************************/
@@ -14,7 +14,6 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
-
 import ru.orangesoftware.financisto.R;
 
 /**
@@ -23,7 +22,7 @@ import ru.orangesoftware.financisto.R;
 public class NumberPickerButton extends android.support.v7.widget.AppCompatImageButton {
 
     private NumberPicker mNumberPicker;
-    
+
     public NumberPickerButton(Context context, AttributeSet attrs,
             int defStyle) {
         super(context, attrs, defStyle);
@@ -36,23 +35,7 @@ public class NumberPickerButton extends android.support.v7.widget.AppCompatImage
     public NumberPickerButton(Context context) {
         super(context);
     }
-    
-    public void setNumberPicker(NumberPicker picker) {
-        mNumberPicker = picker;
-    }
-    
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        cancelLongpressIfRequired(event);
-        return super.onTouchEvent(event);
-    }
-    
-    @Override
-    public boolean onTrackballEvent(MotionEvent event) {
-        cancelLongpressIfRequired(event);
-        return super.onTrackballEvent(event);
-    }
-    
+
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         if ((keyCode == KeyEvent.KEYCODE_DPAD_CENTER)
@@ -61,12 +44,21 @@ public class NumberPickerButton extends android.support.v7.widget.AppCompatImage
         }
         return super.onKeyUp(keyCode, event);
     }
-    
-    private void cancelLongpressIfRequired(MotionEvent event) {
-        if ((event.getAction() == MotionEvent.ACTION_CANCEL)
-                || (event.getAction() == MotionEvent.ACTION_UP)) {
-            cancelLongpress();
-        }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        cancelLongpressIfRequired(event);
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public boolean onTrackballEvent(MotionEvent event) {
+        cancelLongpressIfRequired(event);
+        return super.onTrackballEvent(event);
+    }
+
+    public void setNumberPicker(NumberPicker picker) {
+        mNumberPicker = picker;
     }
 
     private void cancelLongpress() {
@@ -74,6 +66,13 @@ public class NumberPickerButton extends android.support.v7.widget.AppCompatImage
             mNumberPicker.cancelIncrement();
         } else if (R.id.decrement == getId()) {
             mNumberPicker.cancelDecrement();
+        }
+    }
+
+    private void cancelLongpressIfRequired(MotionEvent event) {
+        if ((event.getAction() == MotionEvent.ACTION_CANCEL)
+                || (event.getAction() == MotionEvent.ACTION_UP)) {
+            cancelLongpress();
         }
     }
 }

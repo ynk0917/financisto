@@ -10,9 +10,7 @@ package ru.orangesoftware.financisto.activity;
 
 import android.app.Activity;
 import android.widget.ListAdapter;
-
 import java.util.List;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.db.MyEntityManager;
 import ru.orangesoftware.financisto.model.Project;
@@ -32,8 +30,8 @@ public class ProjectSelector extends MyEntitySelector<Project> {
     }
 
     @Override
-    protected Class getEditActivityClass() {
-        return ProjectActivity.class;
+    protected ListAdapter createAdapter(Activity activity, List<Project> entities) {
+        return TransactionUtils.createProjectAdapter(activity, entities);
     }
 
     @Override
@@ -42,8 +40,8 @@ public class ProjectSelector extends MyEntitySelector<Project> {
     }
 
     @Override
-    protected ListAdapter createAdapter(Activity activity, List<Project> entities) {
-        return TransactionUtils.createProjectAdapter(activity, entities);
+    protected Class getEditActivityClass() {
+        return ProjectActivity.class;
     }
 
 }

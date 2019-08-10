@@ -10,12 +10,11 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.activity;
 
+import java.util.List;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.blotter.BlotterFilter;
 import ru.orangesoftware.financisto.filter.Criteria;
 import ru.orangesoftware.financisto.model.Payee;
-
-import java.util.List;
 
 public class PayeeListActivity extends MyEntityListActivity<Payee> {
 
@@ -24,8 +23,8 @@ public class PayeeListActivity extends MyEntityListActivity<Payee> {
     }
 
     @Override
-    protected List<Payee> loadEntities() {
-        return db.getAllPayeeList();
+    protected Criteria createBlotterCriteria(Payee p) {
+        return Criteria.eq(BlotterFilter.PAYEE_ID, String.valueOf(p.id));
     }
 
     @Override
@@ -34,8 +33,8 @@ public class PayeeListActivity extends MyEntityListActivity<Payee> {
     }
 
     @Override
-    protected Criteria createBlotterCriteria(Payee p) {
-        return Criteria.eq(BlotterFilter.PAYEE_ID, String.valueOf(p.id));
+    protected List<Payee> loadEntities() {
+        return db.getAllPayeeList();
     }
 
 }

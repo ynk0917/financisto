@@ -1,5 +1,9 @@
 package ru.orangesoftware.financisto.adapter;
 
+import static ru.orangesoftware.financisto.utils.MonthlyViewPlanner.CREDITS_HEADER;
+import static ru.orangesoftware.financisto.utils.MonthlyViewPlanner.EXPENSES_HEADER;
+import static ru.orangesoftware.financisto.utils.MonthlyViewPlanner.PAYMENTS_HEADER;
+
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -10,36 +14,58 @@ import android.widget.BaseAdapter;
 import android.widget.Filter;
 import android.widget.Filterable;
 import android.widget.TextView;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.List;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.model.Currency;
 import ru.orangesoftware.financisto.model.TransactionInfo;
 import ru.orangesoftware.financisto.utils.Utils;
 
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.List;
-
-import static ru.orangesoftware.financisto.utils.MonthlyViewPlanner.*;
-
 public class CreditCardStatementAdapter extends BaseAdapter implements Filterable {
 
-    private final Context context;
-    private final int layout;
-    private final List<TransactionInfo> transactions;
+    private class Holder {
 
-    private final Utils u;
-    private final Currency currency;
+        private final TextView dateText;
+
+        private final TextView descText;
+
+        private final TextView valueText;
+
+        public Holder(View v) {
+            dateText = (TextView) v.findViewById(R.id.list_date);
+            descText = (TextView) v.findViewById(R.id.list_note);
+            valueText = (TextView) v.findViewById(R.id.list_value);
+        }
+    }
+
     private final long account;
 
-    private final int scheduledStyle = Typeface.ITALIC;
-    private final int scheduledColor;
+    private final Context context;
+
+    private final Currency currency;
+
     private final int futureColor;
-    private final int negativeColor;
-    private final int normalStyle = Typeface.NORMAL;
-    private final int normalColor = Color.LTGRAY;
+
     private final LayoutInflater inflater;
 
     private boolean isStatementPreview = false;
+
+    private final int layout;
+
+    private final int negativeColor;
+
+    private final int normalColor = Color.LTGRAY;
+
+    private final int normalStyle = Typeface.NORMAL;
+
+    private final int scheduledColor;
+
+    private final int scheduledStyle = Typeface.ITALIC;
+
+    private final List<TransactionInfo> transactions;
+
+    private final Utils u;
 
     /**
      * Create an adapter to display the expenses list of a credit card bill.
@@ -48,7 +74,8 @@ public class CreditCardStatementAdapter extends BaseAdapter implements Filterabl
      * @param layout  The layout id.
      * @param cur     The credit card base currency.
      */
-    public CreditCardStatementAdapter(Context context, int layout, List<TransactionInfo> transactions, Currency cur, long account) {
+    public CreditCardStatementAdapter(Context context, int layout, List<TransactionInfo> transactions, Currency cur,
+            long account) {
         this.context = context;
         this.layout = layout;
         this.transactions = transactions;
@@ -61,17 +88,14 @@ public class CreditCardStatementAdapter extends BaseAdapter implements Filterabl
         this.inflater = LayoutInflater.from(context);
     }
 
-    public boolean isStatementPreview() {
-        return isStatementPreview;
-    }
-
-    public void setStatementPreview(boolean isStatementPreview) {
-        this.isStatementPreview = isStatementPreview;
-    }
-
     @Override
     public int getCount() {
         return transactions.size();
+    }
+
+    @Override
+    public Filter getFilter() {
+        return null;
     }
 
     @Override
@@ -94,9 +118,12 @@ public class CreditCardStatementAdapter extends BaseAdapter implements Filterabl
         return view;
     }
 
-    @Override
-    public Filter getFilter() {
-        return null;
+    public boolean isStatementPreview() {
+        return isStatementPreview;
+    }
+
+    public void setStatementPreview(boolean isStatementPreview) {
+        this.isStatementPreview = isStatementPreview;
     }
 
     public View newView(ViewGroup parent) {
@@ -104,6 +131,50 @@ public class CreditCardStatementAdapter extends BaseAdapter implements Filterabl
         Holder h = new Holder(v);
         v.setTag(h);
         return v;
+    }
+
+    private void drawGroupTitle(String title, Holder h) {
+        TextView dateText = h.dateText;
+        TextView descText = h.descText;
+        TextView valueText = h.valueText;
+        dateText.setText("");
+        descText.setText(title);
+        valueText.setText("");
+        dateText.setBackgroundColor(Color.DKGRAY);
+        descText.setBackgroundColor(Color.DKGRAY);
+        valueText.setBackgroundColor(Color.DKGRAY);
+        descText.setTypeface(Typeface.defaultFromStyle(normalStyle), normalStyle);
+        descText.setTextColor(normalColor);
+    }
+
+    /**
+     * TODO denis.solonenko: use locale specific DateFormat
+     * Return the string for date in the following format: dd/MM/yy.
+     *
+     * @param date Time in milliseconds.
+     * @return The string representing the given time in the format dd/MM/yy.
+     */
+    private String getDate(long date) {
+        Calendar cal = new GregorianCalendar();
+        cal.setTimeInMillis(date);
+        int d = cal.get(Calendar.DAY_OF_MONTH);
+        int m = cal.get(Calendar.MONTH) + 1;
+        int y = cal.get(Calendar.YEAR);
+        return (d < 10 ? "0" + d : d) + "/" + (m < 10 ? "0" + m : m) + "/" + (y - 2000);
+    }
+
+    private int getHeaderTitle(TransactionInfo t) {
+        if (t == CREDITS_HEADER) {
+            return R.string.header_credits;
+        } else if (t == EXPENSES_HEADER) {
+            return R.string.header_expenses;
+        } else {
+            return R.string.header_payments;
+        }
+    }
+
+    private boolean isHeader(TransactionInfo t) {
+        return t == CREDITS_HEADER || t == EXPENSES_HEADER || t == PAYMENTS_HEADER;
     }
 
     private void updateListItem(Holder h, int i) {
@@ -131,12 +202,12 @@ public class CreditCardStatementAdapter extends BaseAdapter implements Filterabl
         boolean future = date > Calendar.getInstance().getTimeInMillis();
 
         /*
-               * Set description:
-               * a) if location is set, format description considering location
-               *    - "Location (Note)"
-               * b) otherwise, show description as note
-               *    - "Note"
-               */
+         * Set description:
+         * a) if location is set, format description considering location
+         *    - "Location (Note)"
+         * b) otherwise, show description as note
+         *    - "Note"
+         */
         if (t.location != null && t.location.id > 0) {
             if (note != null && note.length() > 0) {
                 desc = t.location.name + " (" + note + ")";
@@ -184,65 +255,12 @@ public class CreditCardStatementAdapter extends BaseAdapter implements Filterabl
                 dateText.setTextColor(normalColor);
                 descText.setTextColor(normalColor);
                 // display colored negative values in month preview, but not in bill preview
-                if (value < 0 && !isStatementPreview) valueText.setTextColor(negativeColor);
-                else valueText.setTextColor(normalColor);
+                if (value < 0 && !isStatementPreview) {
+                    valueText.setTextColor(negativeColor);
+                } else {
+                    valueText.setTextColor(normalColor);
+                }
             }
-        }
-    }
-
-    private int getHeaderTitle(TransactionInfo t) {
-        if (t == CREDITS_HEADER) {
-            return R.string.header_credits;
-        } else if (t == EXPENSES_HEADER) {
-            return R.string.header_expenses;
-        } else {
-            return R.string.header_payments;
-        }
-    }
-
-    private boolean isHeader(TransactionInfo t) {
-        return t == CREDITS_HEADER || t == EXPENSES_HEADER || t == PAYMENTS_HEADER;
-    }
-
-    private void drawGroupTitle(String title, Holder h) {
-        TextView dateText = h.dateText;
-        TextView descText = h.descText;
-        TextView valueText = h.valueText;
-        dateText.setText("");
-        descText.setText(title);
-        valueText.setText("");
-        dateText.setBackgroundColor(Color.DKGRAY);
-        descText.setBackgroundColor(Color.DKGRAY);
-        valueText.setBackgroundColor(Color.DKGRAY);
-        descText.setTypeface(Typeface.defaultFromStyle(normalStyle), normalStyle);
-        descText.setTextColor(normalColor);
-    }
-
-    /**
-     * TODO denis.solonenko: use locale specific DateFormat
-     * Return the string for date in the following format: dd/MM/yy.
-     *
-     * @param date Time in milliseconds.
-     * @return The string representing the given time in the format dd/MM/yy.
-     */
-    private String getDate(long date) {
-        Calendar cal = new GregorianCalendar();
-        cal.setTimeInMillis(date);
-        int d = cal.get(Calendar.DAY_OF_MONTH);
-        int m = cal.get(Calendar.MONTH) + 1;
-        int y = cal.get(Calendar.YEAR);
-        return (d < 10 ? "0" + d : d) + "/" + (m < 10 ? "0" + m : m) + "/" + (y - 2000);
-    }
-
-    private class Holder {
-        private final TextView dateText;
-        private final TextView descText;
-        private final TextView valueText;
-
-        public Holder(View v) {
-            dateText = (TextView) v.findViewById(R.id.list_date);
-            descText = (TextView) v.findViewById(R.id.list_note);
-            valueText = (TextView) v.findViewById(R.id.list_value);
         }
     }
 }

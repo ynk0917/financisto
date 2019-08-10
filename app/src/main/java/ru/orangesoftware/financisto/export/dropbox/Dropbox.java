@@ -10,7 +10,6 @@ package ru.orangesoftware.financisto.export.dropbox;
 
 import android.content.Context;
 import android.util.Log;
-
 import com.dropbox.core.DbxException;
 import com.dropbox.core.DbxRequestConfig;
 import com.dropbox.core.android.Auth;
@@ -21,15 +20,16 @@ import com.dropbox.core.v2.files.FileMetadata;
 import com.dropbox.core.v2.files.ListFolderResult;
 import com.dropbox.core.v2.files.Metadata;
 import com.dropbox.core.v2.files.WriteMode;
-
-import ru.orangesoftware.financisto.R;
-import ru.orangesoftware.financisto.export.ImportExportException;
-import ru.orangesoftware.financisto.utils.MyPreferences;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import ru.orangesoftware.financisto.R;
+import ru.orangesoftware.financisto.export.ImportExportException;
+import ru.orangesoftware.financisto.utils.MyPreferences;
 
 public class Dropbox {
 
@@ -37,16 +37,12 @@ public class Dropbox {
 
     private final Context context;
 
-    private boolean startedAuth = false;
     private DbxClientV2 dropboxClient;
+
+    private boolean startedAuth = false;
 
     public Dropbox(Context context) {
         this.context = context;
-    }
-
-    public void startAuth() {
-        startedAuth = true;
-        Auth.startOAuth2Authentication(context, APP_KEY);
     }
 
     public void completeAuth() {
@@ -75,18 +71,22 @@ public class Dropbox {
         }
     }
 
-    private boolean authSession() {
-        String accessToken = MyPreferences.getDropboxAuthToken(context);
-        if (accessToken != null) {
-            if (dropboxClient == null) {
-                DbxRequestConfig requestConfig = DbxRequestConfig.newBuilder("financisto")
-                        .withHttpRequestor(new OkHttp3Requestor(OkHttp3Requestor.defaultOkHttpClient()))
-                        .build();
-                dropboxClient = new DbxClientV2(requestConfig, accessToken);
+    public InputStream getFileAsStream(String backupFile) throws Exception {
+        if (authSession()) {
+            try {
+                return dropboxClient.files().downloadBuilder("/" + backupFile).start().getInputStream();
+            } catch (Exception e) {
+                Log.e("Financisto", "Dropbox: Something wrong", e);
+                throw new ImportExportException(R.string.dropbox_error, e);
             }
-            return true;
+        } else {
+            throw new ImportExportException(R.string.dropbox_auth_error);
         }
-        return false;
+    }
+
+    public void startAuth() {
+        startedAuth = true;
+        Auth.startOAuth2Authentication(context, APP_KEY);
     }
 
     public FileMetadata uploadFile(File file) throws Exception {
@@ -94,7 +94,8 @@ public class Dropbox {
             try {
                 InputStream is = new FileInputStream(file);
                 try {
-                    FileMetadata fileMetadata = dropboxClient.files().uploadBuilder("/" + file.getName()).withMode(WriteMode.ADD).uploadAndFinish(is);
+                    FileMetadata fileMetadata = dropboxClient.files().uploadBuilder("/" + file.getName())
+                            .withMode(WriteMode.ADD).uploadAndFinish(is);
                     Log.i("Financisto", "Dropbox: The uploaded file's rev is: " + fileMetadata.getRev());
                     return fileMetadata;
                 } finally {
@@ -136,16 +137,17 @@ public class Dropbox {
         }
     }
 
-    public InputStream getFileAsStream(String backupFile) throws Exception {
-        if (authSession()) {
-            try {
-                return dropboxClient.files().downloadBuilder("/" + backupFile).start().getInputStream();
-            } catch (Exception e) {
-                Log.e("Financisto", "Dropbox: Something wrong", e);
-                throw new ImportExportException(R.string.dropbox_error, e);
+    private boolean authSession() {
+        String accessToken = MyPreferences.getDropboxAuthToken(context);
+        if (accessToken != null) {
+            if (dropboxClient == null) {
+                DbxRequestConfig requestConfig = DbxRequestConfig.newBuilder("financisto")
+                        .withHttpRequestor(new OkHttp3Requestor(OkHttp3Requestor.defaultOkHttpClient()))
+                        .build();
+                dropboxClient = new DbxClientV2(requestConfig, accessToken);
             }
-        } else {
-            throw new ImportExportException(R.string.dropbox_auth_error);
+            return true;
         }
+        return false;
     }
 }

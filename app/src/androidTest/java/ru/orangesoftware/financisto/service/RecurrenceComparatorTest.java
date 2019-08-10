@@ -1,11 +1,10 @@
 package ru.orangesoftware.financisto.service;
 
 import android.test.AndroidTestCase;
-import ru.orangesoftware.financisto.model.TransactionInfo;
-
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import ru.orangesoftware.financisto.model.TransactionInfo;
 
 public class RecurrenceComparatorTest extends AndroidTestCase {
 
@@ -51,7 +50,7 @@ public class RecurrenceComparatorTest extends AndroidTestCase {
     private Date date(int y, int m, int d) {
         Calendar c = Calendar.getInstance();
         c.set(Calendar.YEAR, y);
-        c.set(Calendar.MONTH, m-1);
+        c.set(Calendar.MONTH, m - 1);
         c.set(Calendar.DAY_OF_MONTH, d);
         c.set(Calendar.HOUR_OF_DAY, 0);
         c.set(Calendar.MINUTE, 0);

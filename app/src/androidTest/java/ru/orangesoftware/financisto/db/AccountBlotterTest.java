@@ -8,24 +8,29 @@
 
 package ru.orangesoftware.financisto.db;
 
+import static ru.orangesoftware.financisto.db.DatabaseAdapter.enhanceFilterForAccountBlotter;
+import static ru.orangesoftware.financisto.test.DateTime.date;
+
 import android.database.Cursor;
+import java.util.Map;
 import ru.orangesoftware.financisto.blotter.BlotterFilter;
-import ru.orangesoftware.financisto.filter.WhereFilter;
 import ru.orangesoftware.financisto.filter.Criteria;
+import ru.orangesoftware.financisto.filter.WhereFilter;
 import ru.orangesoftware.financisto.model.Account;
 import ru.orangesoftware.financisto.model.Category;
 import ru.orangesoftware.financisto.model.Total;
-import ru.orangesoftware.financisto.test.*;
-
-import java.util.Map;
-
-import static ru.orangesoftware.financisto.db.DatabaseAdapter.enhanceFilterForAccountBlotter;
-import static ru.orangesoftware.financisto.test.DateTime.date;
+import ru.orangesoftware.financisto.test.AccountBuilder;
+import ru.orangesoftware.financisto.test.CategoryBuilder;
+import ru.orangesoftware.financisto.test.DateTime;
+import ru.orangesoftware.financisto.test.TransactionBuilder;
+import ru.orangesoftware.financisto.test.TransferBuilder;
 
 public class AccountBlotterTest extends AbstractDbTest {
 
     Account a1;
+
     Account a2;
+
     Map<String, Category> categoriesMap;
 
     @Override
@@ -47,7 +52,8 @@ public class AccountBlotterTest extends AbstractDbTest {
         assertAccountBlotterTotal(a2, date(2012, 2, 8), date(2012, 2, 9), 200);
 
         // regular transfer
-        TransferBuilder.withDb(db).dateTime(date(2012, 2, 9)).fromAccount(a1).fromAmount(-100).toAccount(a2).toAmount(50).create();
+        TransferBuilder.withDb(db).dateTime(date(2012, 2, 9)).fromAccount(a1).fromAmount(-100).toAccount(a2)
+                .toAmount(50).create();
         assertAccountBlotter(a1, -100, 1000);
         assertAccountBlotter(a2, 50, 200);
         assertAccountBlotterTotal(a1, date(2012, 2, 1), date(2012, 2, 9), 900);
@@ -108,33 +114,52 @@ public class AccountBlotterTest extends AbstractDbTest {
         assertTotals(600, 130);
     }
 
-    private void assertAccountBlotter(Account account, long...amounts) {
+    private void assertAccountBlotter(Account account, long... amounts) {
         assertAccountBlotterColumn(account, DatabaseHelper.BlotterColumns.from_amount, amounts);
     }
 
-    private void assertRunningBalance(Account account, long...amounts) {
-        assertAccountBlotterColumn(account, DatabaseHelper.BlotterColumns.from_account_balance, amounts);
-    }
-
     // blotter is from newest to oldest
-    private void assertAccountBlotterColumn(Account account, DatabaseHelper.BlotterColumns column, long...values) {
+    private void assertAccountBlotterColumn(Account account, DatabaseHelper.BlotterColumns column, long... values) {
         WhereFilter filter = createBlotterForAccountFilter(account);
         Cursor c = db.getBlotterForAccount(filter);
         try {
             int i = 0;
             while (c.moveToNext()) {
                 if (i >= values.length) {
-                    fail("Too many rows "+c.getCount()+". Expected "+values.length);
+                    fail("Too many rows " + c.getCount() + ". Expected " + values.length);
                 }
                 long expectedAmount = values[i++];
                 long amount = c.getLong(column.ordinal());
-                assertEquals("Blotter row "+i, expectedAmount, amount);
+                assertEquals("Blotter row " + i, expectedAmount, amount);
             }
             if (i != values.length) {
-                fail("Too few rows "+c.getCount()+". Expected "+values.length);
+                fail("Too few rows " + c.getCount() + ". Expected " + values.length);
             }
         } finally {
             c.close();
+        }
+    }
+
+    private void assertAccountBlotterTotal(Account a1, DateTime start, DateTime end, int total) {
+        WhereFilter filter = enhanceFilterForAccountBlotter(WhereFilter.empty());
+        filter.btw(BlotterFilter.DATETIME, String.valueOf(start.atMidnight().asLong()),
+                String.valueOf(end.atDayEnd().asLong()));
+        filter.eq(BlotterFilter.FROM_ACCOUNT_ID, String.valueOf(a1.id));
+        TransactionsTotalCalculator calculator = new TransactionsTotalCalculator(db, filter);
+        assertEquals(total, calculator.getAccountTotal().balance);
+    }
+
+    private void assertRunningBalance(Account account, long... amounts) {
+        assertAccountBlotterColumn(account, DatabaseHelper.BlotterColumns.from_account_balance, amounts);
+    }
+
+    private void assertTotals(long... totalAmounts) {
+        WhereFilter filter = WhereFilter.empty();
+        TransactionsTotalCalculator calculator = new TransactionsTotalCalculator(db, filter);
+        Total[] totals = calculator.getTransactionsBalance();
+        assertEquals(totalAmounts.length, totals.length);
+        for (int i = 0; i < totalAmounts.length; i++) {
+            assertEquals("Total " + i, totalAmounts[i], totals[i].balance);
         }
     }
 
@@ -142,24 +167,6 @@ public class AccountBlotterTest extends AbstractDbTest {
         WhereFilter filter = WhereFilter.empty();
         filter.put(Criteria.eq(BlotterFilter.FROM_ACCOUNT_ID, String.valueOf(account.id)));
         return filter;
-    }
-
-    private void assertAccountBlotterTotal(Account a1, DateTime start, DateTime end, int total) {
-        WhereFilter filter = enhanceFilterForAccountBlotter(WhereFilter.empty());
-        filter.btw(BlotterFilter.DATETIME, String.valueOf(start.atMidnight().asLong()), String.valueOf(end.atDayEnd().asLong()));
-        filter.eq(BlotterFilter.FROM_ACCOUNT_ID, String.valueOf(a1.id));
-        TransactionsTotalCalculator calculator = new TransactionsTotalCalculator(db, filter);
-        assertEquals(total, calculator.getAccountTotal().balance);
-    }
-
-    private void assertTotals(long...totalAmounts) {
-        WhereFilter filter = WhereFilter.empty();
-        TransactionsTotalCalculator calculator = new TransactionsTotalCalculator(db, filter);
-        Total[] totals = calculator.getTransactionsBalance();
-        assertEquals(totalAmounts.length, totals.length);
-        for (int i=0; i<totalAmounts.length; i++) {
-            assertEquals("Total "+i, totalAmounts[i], totals[i].balance);
-        }
     }
 
 }

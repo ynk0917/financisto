@@ -10,10 +10,9 @@ package ru.orangesoftware.financisto.blotter;
 
 import android.content.Intent;
 import android.test.AndroidTestCase;
+import java.util.Arrays;
 import ru.orangesoftware.financisto.filter.Criteria;
 import ru.orangesoftware.financisto.filter.WhereFilter;
-
-import java.util.Arrays;
 
 /**
  * Created by IntelliJ IDEA.
@@ -21,6 +20,10 @@ import java.util.Arrays;
  * Date: 8/1/11 10:35 PM
  */
 public class WhereFilterTest extends AndroidTestCase {
+
+    public static void assertEquals(String[] expected, String[] actual) {
+        assertEquals(Arrays.toString(expected), Arrays.toString(actual));
+    }
 
     public void test_filter_should_support_raw_criteria() {
         WhereFilter filter = givenFilterWithRawCriteria();
@@ -38,20 +41,16 @@ public class WhereFilterTest extends AndroidTestCase {
         assertFilterSelection(copy);
     }
 
-    private WhereFilter givenFilterWithRawCriteria() {
-        WhereFilter filter = WhereFilter.empty();
-        filter.put(Criteria.eq("from_account_id", "1"));
-        filter.put(Criteria.raw("parent_id=0 OR is_transfer=-1"));
-        return filter;
-    }
-
     private void assertFilterSelection(WhereFilter filter) {
         assertEquals("from_account_id =? AND (parent_id=0 OR is_transfer=-1)", filter.getSelection());
         assertEquals(new String[]{"1"}, filter.getSelectionArgs());
     }
 
-    public static void assertEquals(String[] expected, String[] actual) {
-        assertEquals(Arrays.toString(expected), Arrays.toString(actual));
+    private WhereFilter givenFilterWithRawCriteria() {
+        WhereFilter filter = WhereFilter.empty();
+        filter.put(Criteria.eq("from_account_id", "1"));
+        filter.put(Criteria.raw("parent_id=0 OR is_transfer=-1"));
+        return filter;
     }
 
 }

@@ -4,7 +4,7 @@
  * are made available under the terms of the GNU Public License v2.0
  * which accompanies this distribution, and is available at
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * 
+ *
  * Contributors:
  *     Denis Solonenko - initial API and implementation
  ******************************************************************************/
@@ -20,25 +20,25 @@ import ru.orangesoftware.financisto.blotter.TotalCalculationTask;
 
 public class SplitsBlotterActivity extends BlotterActivity {
 
-	@Override
-	protected void internalOnCreate(Bundle savedInstanceState) {
-		super.internalOnCreate(savedInstanceState);
-		bFilter.setVisibility(View.GONE);
-	}
-	
-	@Override
-	protected Cursor createCursor() {
-        return db.getBlotterForAccountWithSplits(blotterFilter);
-	}
+    @Override
+    protected ListAdapter createAdapter(Cursor cursor) {
+        return new TransactionsListAdapter(this, db, cursor);
+    }
 
-	@Override
-	protected ListAdapter createAdapter(Cursor cursor) {
-		return new TransactionsListAdapter(this, db, cursor);
-	}
+    @Override
+    protected Cursor createCursor() {
+        return db.getBlotterForAccountWithSplits(blotterFilter);
+    }
 
     @Override
     protected TotalCalculationTask createTotalCalculationTask() {
         return new BlotterTotalCalculationTask(this, db, blotterFilter, totalText);
+    }
+
+    @Override
+    protected void internalOnCreate(Bundle savedInstanceState) {
+        super.internalOnCreate(savedInstanceState);
+        bFilter.setVisibility(View.GONE);
     }
 
 }

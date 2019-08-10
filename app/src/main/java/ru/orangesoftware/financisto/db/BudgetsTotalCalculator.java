@@ -10,15 +10,20 @@ package ru.orangesoftware.financisto.db;
 
 import android.os.Handler;
 import android.util.Log;
-import ru.orangesoftware.financisto.model.*;
-import ru.orangesoftware.financisto.rates.ExchangeRate;
-import ru.orangesoftware.financisto.rates.ExchangeRateProvider;
-
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import ru.orangesoftware.financisto.model.Budget;
+import ru.orangesoftware.financisto.model.Category;
+import ru.orangesoftware.financisto.model.Currency;
+import ru.orangesoftware.financisto.model.MyEntity;
+import ru.orangesoftware.financisto.model.Project;
+import ru.orangesoftware.financisto.model.Total;
+import ru.orangesoftware.financisto.model.TotalError;
+import ru.orangesoftware.financisto.rates.ExchangeRate;
+import ru.orangesoftware.financisto.rates.ExchangeRateProvider;
 
 /**
  * Created by IntelliJ IDEA.
@@ -28,12 +33,56 @@ import java.util.Map;
  */
 public class BudgetsTotalCalculator {
 
-    private final DatabaseAdapter db;
     private final List<Budget> budgets;
+
+    private final DatabaseAdapter db;
 
     public BudgetsTotalCalculator(DatabaseAdapter db, List<Budget> budgets) {
         this.db = db;
         this.budgets = budgets;
+    }
+
+    public Total calculateTotalInHomeCurrency() {
+        long t0 = System.currentTimeMillis();
+        try {
+            BigDecimal amount = BigDecimal.ZERO;
+            BigDecimal balance = BigDecimal.ZERO;
+            ExchangeRateProvider rates = db.getLatestRates();
+            Currency homeCurrency = db.getHomeCurrency();
+            for (Budget b : budgets) {
+                Currency currency = b.getBudgetCurrency();
+                ExchangeRate r = rates.getRate(currency, homeCurrency);
+                if (r == ExchangeRate.NA) {
+                    return new Total(homeCurrency, TotalError.lastRateError(currency));
+                } else {
+                    amount = amount.add(convert(r, b.spent));
+                    balance = balance.add(convert(r, b.amount + b.spent));
+                }
+            }
+            Total total = new Total(homeCurrency, true);
+            total.amount = amount.longValue();
+            total.balance = balance.longValue();
+            return total;
+        } finally {
+            long t1 = System.currentTimeMillis();
+            Log.d("BUDGET TOTALS", (t1 - t0) + "ms");
+        }
+    }
+
+    public Total[] calculateTotals() {
+        Map<Currency, Total> totals = new HashMap<Currency, Total>();
+        for (Budget b : budgets) {
+            Currency c = b.getBudgetCurrency();
+            Total total = totals.get(c);
+            if (total == null) {
+                total = new Total(c, true);
+                totals.put(c, total);
+            }
+            total.amount += b.spent;
+            total.balance += b.amount + b.spent;
+        }
+        Collection<Total> values = totals.values();
+        return values.toArray(new Total[values.size()]);
     }
 
     public void updateBudgets(Handler handler) {
@@ -63,52 +112,9 @@ public class BudgetsTotalCalculator {
             Log.d("BUDGET UPDATE", (t1 - t0) + "ms");
         }
     }
-    
-    public Total[] calculateTotals() {
-        Map<Currency, Total> totals = new HashMap<Currency, Total>();
-        for (Budget b : budgets) {
-            Currency c = b.getBudgetCurrency();
-            Total total = totals.get(c);
-            if (total == null) {
-                total = new Total(c, true);
-                totals.put(c, total);
-            }
-            total.amount += b.spent;
-            total.balance += b.amount+b.spent;
-        }
-        Collection<Total> values = totals.values();
-        return values.toArray(new Total[values.size()]);
-    }
-
-    public Total calculateTotalInHomeCurrency() {
-        long t0 = System.currentTimeMillis();
-        try {
-            BigDecimal amount = BigDecimal.ZERO;
-            BigDecimal balance = BigDecimal.ZERO;
-            ExchangeRateProvider rates = db.getLatestRates();
-            Currency homeCurrency = db.getHomeCurrency();
-            for (Budget b : budgets) {
-                Currency currency = b.getBudgetCurrency();
-                ExchangeRate r = rates.getRate(currency, homeCurrency);
-                if (r == ExchangeRate.NA) {
-                    return new Total(homeCurrency, TotalError.lastRateError(currency));
-                } else {
-                    amount = amount.add(convert(r, b.spent));
-                    balance = balance.add(convert(r, b.amount+b.spent));
-                }
-            }
-            Total total = new Total(homeCurrency, true);
-            total.amount = amount.longValue();
-            total.balance = balance.longValue();
-            return total;
-        } finally {
-            long t1 = System.currentTimeMillis();
-            Log.d("BUDGET TOTALS", (t1 - t0) + "ms");
-        }
-    }
 
     private BigDecimal convert(ExchangeRate r, long spent) {
-        return BigDecimal.valueOf(r.rate*spent);
+        return BigDecimal.valueOf(r.rate * spent);
     }
 
     private <T extends MyEntity> String getChecked(Map<Long, T> entities, String s) {

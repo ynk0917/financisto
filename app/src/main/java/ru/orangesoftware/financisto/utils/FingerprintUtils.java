@@ -1,9 +1,7 @@
 package ru.orangesoftware.financisto.utils;
 
 import android.content.Context;
-
 import com.mtramin.rxfingerprint.RxFingerprint;
-
 import ru.orangesoftware.financisto.R;
 
 public class FingerprintUtils {

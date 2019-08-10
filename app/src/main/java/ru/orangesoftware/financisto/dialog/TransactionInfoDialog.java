@@ -10,6 +10,8 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.dialog;
 
+import static ru.orangesoftware.financisto.utils.Utils.isNotEmpty;
+
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
@@ -21,9 +23,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import java.util.List;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.activity.BlotterActivity;
 import ru.orangesoftware.financisto.activity.BlotterOperations;
@@ -42,15 +42,18 @@ import ru.orangesoftware.financisto.utils.MyPreferences;
 import ru.orangesoftware.financisto.utils.Utils;
 import ru.orangesoftware.financisto.view.NodeInflater;
 
-import static ru.orangesoftware.financisto.utils.Utils.isNotEmpty;
-
 public class TransactionInfoDialog {
 
     private final Context context;
+
     private final DatabaseAdapter db;
+
     private final NodeInflater inflater;
+
     private final LayoutInflater layoutInflater;
+
     private final int splitPadding;
+
     private final Utils u;
 
     public TransactionInfoDialog(Context context, DatabaseAdapter db, NodeInflater inflater) {
@@ -82,11 +85,84 @@ public class TransactionInfoDialog {
         showDialog(blotterActivity, transactionId, v, titleView);
     }
 
-    private void createMainInfoNodes(TransactionInfo ti, LinearLayout layout) {
-        if (ti.toAccount == null) {
-            createLayoutForTransaction(ti, layout);
+    private void add(LinearLayout layout, int labelId, String data, AccountType accountType) {
+        inflater.new Builder(layout, R.layout.select_entry_simple_icon)
+                .withIcon(accountType.iconId).withLabel(labelId).withData(data).create();
+    }
+
+    private TextView add(LinearLayout layout, int labelId, String data) {
+        View v = inflater.new Builder(layout, R.layout.select_entry_simple).withLabel(labelId)
+                .withData(data).create();
+        return (TextView) v.findViewById(R.id.data);
+    }
+
+    private void add(LinearLayout layout, int labelId, String data, String pictureFileName) {
+        View v = inflater.new PictureBuilder(layout)
+                .withPicture(context, pictureFileName)
+                .withLabel(labelId)
+                .withData(data)
+                .create();
+        v.setClickable(false);
+        v.setFocusable(false);
+        v.setFocusableInTouchMode(false);
+        ImageView pictureView = v.findViewById(R.id.picture);
+        pictureView.setTag(pictureFileName);
+    }
+
+    private LinearLayout add(LinearLayout layout, String label, String data) {
+        return (LinearLayout) inflater.new Builder(layout, R.layout.select_entry_simple).withLabel(label)
+                .withData(data).create();
+    }
+
+    private void addSplitInfo(LinearLayout layout, Account fromAccount, Transaction split) {
+        if (split.isTransfer()) {
+            Account toAccount = db.getAccount(split.toAccountId);
+            String title = u.getTransferTitleText(fromAccount, toAccount);
+            LinearLayout topLayout = add(layout, title, "");
+            TextView amountView = topLayout.findViewById(R.id.data);
+            u.setTransferAmountText(amountView, fromAccount.currency, split.fromAmount, toAccount.currency,
+                    split.toAmount);
+            topLayout.setPadding(splitPadding, 0, 0, 0);
         } else {
-            createLayoutForTransfer(ti, layout);
+            Category c = db.getCategoryWithParent(split.categoryId);
+            StringBuilder sb = new StringBuilder();
+            if (c != null && c.id > 0) {
+                sb.append(c.title);
+            }
+            if (isNotEmpty(split.note)) {
+                sb.append(" (").append(split.note).append(")");
+            }
+            LinearLayout topLayout = add(layout, sb.toString(), "");
+            TextView amountView = topLayout.findViewById(R.id.data);
+            u.setAmountText(amountView, fromAccount.currency, split.fromAmount, true);
+            topLayout.setPadding(splitPadding, 0, 0, 0);
+        }
+    }
+
+    private void createAdditionalInfoNodes(TransactionInfo ti, LinearLayout layout) {
+        List<TransactionAttributeInfo> attributes = db.getAttributesForTransaction(ti.id);
+        for (TransactionAttributeInfo tai : attributes) {
+            String value = tai.getValue(context);
+            if (isNotEmpty(value)) {
+                add(layout, tai.name, value);
+            }
+        }
+
+        Project project = ti.project;
+        if (project != null && project.id > 0) {
+            add(layout, R.string.project, project.title);
+        }
+
+        if (!Utils.isEmpty(ti.note)) {
+            add(layout, R.string.note, ti.note);
+        }
+
+        MyLocation location = ti.location;
+        String locationName;
+        if (location != null && location.id > 0) {
+            locationName = location.name + (location.resolvedAddress != null ? " (" + location.resolvedAddress + ")"
+                    : "");
+            add(layout, R.string.location, locationName);
         }
     }
 
@@ -112,30 +188,6 @@ public class TransactionInfoDialog {
         }
     }
 
-    private void addSplitInfo(LinearLayout layout, Account fromAccount, Transaction split) {
-        if (split.isTransfer()) {
-            Account toAccount = db.getAccount(split.toAccountId);
-            String title = u.getTransferTitleText(fromAccount, toAccount);
-            LinearLayout topLayout = add(layout, title, "");
-            TextView amountView = topLayout.findViewById(R.id.data);
-            u.setTransferAmountText(amountView, fromAccount.currency, split.fromAmount, toAccount.currency, split.toAmount);
-            topLayout.setPadding(splitPadding, 0, 0, 0);
-        } else {
-            Category c = db.getCategoryWithParent(split.categoryId);
-            StringBuilder sb = new StringBuilder();
-            if (c != null && c.id > 0) {
-                sb.append(c.title);
-            }
-            if (isNotEmpty(split.note)) {
-                sb.append(" (").append(split.note).append(")");
-            }
-            LinearLayout topLayout = add(layout, sb.toString(), "");
-            TextView amountView = topLayout.findViewById(R.id.data);
-            u.setAmountText(amountView, fromAccount.currency, split.fromAmount, true);
-            topLayout.setPadding(splitPadding, 0, 0, 0);
-        }
-    }
-
     private void createLayoutForTransfer(TransactionInfo ti, LinearLayout layout) {
         AccountType fromAccountType = AccountType.valueOf(ti.fromAccount.type);
         add(layout, R.string.account_from, ti.fromAccount.title, fromAccountType);
@@ -153,29 +205,11 @@ public class TransactionInfoDialog {
         }
     }
 
-    private void createAdditionalInfoNodes(TransactionInfo ti, LinearLayout layout) {
-        List<TransactionAttributeInfo> attributes = db.getAttributesForTransaction(ti.id);
-        for (TransactionAttributeInfo tai : attributes) {
-            String value = tai.getValue(context);
-            if (isNotEmpty(value)) {
-                add(layout, tai.name, value);
-            }
-        }
-
-        Project project = ti.project;
-        if (project != null && project.id > 0) {
-            add(layout, R.string.project, project.title);
-        }
-
-        if (!Utils.isEmpty(ti.note)) {
-            add(layout, R.string.note, ti.note);
-        }
-
-        MyLocation location = ti.location;
-        String locationName;
-        if (location != null && location.id > 0) {
-            locationName = location.name + (location.resolvedAddress != null ? " (" + location.resolvedAddress + ")" : "");
-            add(layout, R.string.location, locationName);
+    private void createMainInfoNodes(TransactionInfo ti, LinearLayout layout) {
+        if (ti.toAccount == null) {
+            createLayoutForTransaction(ti, layout);
+        } else {
+            createLayoutForTransfer(ti, layout);
         }
     }
 
@@ -206,7 +240,8 @@ public class TransactionInfoDialog {
         return titleView;
     }
 
-    private void showDialog(final BlotterActivity blotterActivity, final long transactionId, final View v, View titleView) {
+    private void showDialog(final BlotterActivity blotterActivity, final long transactionId, final View v,
+            View titleView) {
         final Dialog d = new AlertDialog.Builder(blotterActivity)
                 .setCustomTitle(titleView)
                 .setView(v)
@@ -223,35 +258,6 @@ public class TransactionInfoDialog {
         bClose.setOnClickListener(arg0 -> d.dismiss());
 
         d.show();
-    }
-
-    private void add(LinearLayout layout, int labelId, String data, AccountType accountType) {
-        inflater.new Builder(layout, R.layout.select_entry_simple_icon)
-                .withIcon(accountType.iconId).withLabel(labelId).withData(data).create();
-    }
-
-    private TextView add(LinearLayout layout, int labelId, String data) {
-        View v = inflater.new Builder(layout, R.layout.select_entry_simple).withLabel(labelId)
-                .withData(data).create();
-        return (TextView)v.findViewById(R.id.data);
-    }
-
-    private void add(LinearLayout layout, int labelId, String data, String pictureFileName) {
-        View v = inflater.new PictureBuilder(layout)
-                .withPicture(context, pictureFileName)
-                .withLabel(labelId)
-                .withData(data)
-                .create();
-        v.setClickable(false);
-        v.setFocusable(false);
-        v.setFocusableInTouchMode(false);
-        ImageView pictureView = v.findViewById(R.id.picture);
-        pictureView.setTag(pictureFileName);
-    }
-
-    private LinearLayout add(LinearLayout layout, String label, String data) {
-        return (LinearLayout) inflater.new Builder(layout, R.layout.select_entry_simple).withLabel(label)
-                .withData(data).create();
     }
 
 }

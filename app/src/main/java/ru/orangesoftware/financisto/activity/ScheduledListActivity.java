@@ -16,7 +16,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.ListAdapter;
 import android.widget.TextView;
-
+import java.util.ArrayList;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.adapter.ScheduledListAdapter;
 import ru.orangesoftware.financisto.blotter.BlotterFilter;
@@ -24,8 +24,6 @@ import ru.orangesoftware.financisto.filter.WhereFilter;
 import ru.orangesoftware.financisto.model.TransactionInfo;
 import ru.orangesoftware.financisto.service.RecurrenceScheduler;
 import ru.orangesoftware.financisto.utils.IntegrityCheckInstalledOnSdCard;
-
-import java.util.ArrayList;
 
 public class ScheduledListActivity extends BlotterActivity {
 
@@ -39,19 +37,16 @@ public class ScheduledListActivity extends BlotterActivity {
     }
 
     @Override
-    protected void calculateTotals() {
-        // do nothing
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            recreateCursor();
+        }
     }
 
     @Override
-    protected Cursor createCursor() {
-        return null;
-    }
-
-    @Override
-    protected ListAdapter createAdapter(Cursor cursor) {
-        ArrayList<TransactionInfo> transactions = scheduler.getSortedSchedules(System.currentTimeMillis());
-        return new ScheduledListAdapter(this, transactions);
+    public void integrityCheck() {
+        new IntegrityCheckTask(this).execute(new IntegrityCheckInstalledOnSdCard(this));
     }
 
     @Override
@@ -61,8 +56,26 @@ public class ScheduledListActivity extends BlotterActivity {
         updateAdapter(transactions);
     }
 
-    private void updateAdapter(ArrayList<TransactionInfo> transactions) {
-        ((ScheduledListAdapter) adapter).setTransactions(transactions);
+    @Override
+    protected void afterDeletingTransaction(long id) {
+        super.afterDeletingTransaction(id);
+        scheduler.cancelPendingIntentForSchedule(this, id);
+    }
+
+    @Override
+    protected void calculateTotals() {
+        // do nothing
+    }
+
+    @Override
+    protected ListAdapter createAdapter(Cursor cursor) {
+        ArrayList<TransactionInfo> transactions = scheduler.getSortedSchedules(System.currentTimeMillis());
+        return new ScheduledListAdapter(this, transactions);
+    }
+
+    @Override
+    protected Cursor createCursor() {
+        return null;
     }
 
     @Override
@@ -84,23 +97,8 @@ public class ScheduledListActivity extends BlotterActivity {
         blotterFilter.eq(BlotterFilter.PARENT_ID, String.valueOf(0));
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            recreateCursor();
-        }
-    }
-
-    @Override
-    protected void afterDeletingTransaction(long id) {
-        super.afterDeletingTransaction(id);
-        scheduler.cancelPendingIntentForSchedule(this, id);
-    }
-
-    @Override
-    public void integrityCheck() {
-        new IntegrityCheckTask(this).execute(new IntegrityCheckInstalledOnSdCard(this));
+    private void updateAdapter(ArrayList<TransactionInfo> transactions) {
+        ((ScheduledListAdapter) adapter).setTransactions(transactions);
     }
 
 }

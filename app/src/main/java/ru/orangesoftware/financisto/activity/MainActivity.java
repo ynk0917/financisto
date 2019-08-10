@@ -19,10 +19,8 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Window;
 import android.widget.TabHost;
-
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.bus.GreenRobotBus;
 import ru.orangesoftware.financisto.bus.GreenRobotBus_;
@@ -38,11 +36,6 @@ import ru.orangesoftware.financisto.utils.PinProtection;
 public class MainActivity extends TabActivity implements TabHost.OnTabChangeListener {
 
     private GreenRobotBus greenRobotBus;
-
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,16 +58,6 @@ public class MainActivity extends TabActivity implements TabHost.OnTabChangeList
         MyPreferences.StartupScreen screen = MyPreferences.getStartupScreen(this);
         tabHost.setCurrentTabByTag(screen.tag);
         tabHost.setOnTabChangedListener(this);
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onSwitchToMenuTab(SwitchToMenuTabEvent event) {
-        getTabHost().setCurrentTabByTag("menu");
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onRefreshCurrentTab(RefreshCurrentTab e) {
-        refreshCurrentTab();
     }
 
     @Override
@@ -100,6 +83,39 @@ public class MainActivity extends TabActivity implements TabHost.OnTabChangeList
         PinProtection.immediateLock(this);
     }
 
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onRefreshCurrentTab(RefreshCurrentTab e) {
+        refreshCurrentTab();
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onSwitchToMenuTab(SwitchToMenuTabEvent event) {
+        getTabHost().setCurrentTabByTag("menu");
+    }
+
+    @Override
+    public void onTabChanged(String tabId) {
+        Log.d("Financisto", "About to update tab " + tabId);
+        long t0 = System.currentTimeMillis();
+        refreshCurrentTab();
+        long t1 = System.currentTimeMillis();
+        Log.d("Financisto", "Tab " + tabId + " updated in " + (t1 - t0) + "ms");
+    }
+
+    public void refreshCurrentTab() {
+        Activity currentActivity = getLocalActivityManager().getCurrentActivity();
+        if (currentActivity instanceof RefreshSupportedActivity) {
+            RefreshSupportedActivity activity = (RefreshSupportedActivity) currentActivity;
+            activity.recreateCursor();
+            activity.integrityCheck();
+        }
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
+    }
+
     private void initialLoad() {
         long t3, t2, t1, t0 = System.currentTimeMillis();
         DatabaseAdapter db = new DatabaseAdapter(this);
@@ -112,8 +128,10 @@ public class MainActivity extends TabActivity implements TabHost.OnTabChangeList
                 updateFieldInTable(x, DatabaseHelper.CATEGORY_TABLE, 0, "title", getString(R.string.no_category));
                 updateFieldInTable(x, DatabaseHelper.CATEGORY_TABLE, -1, "title", getString(R.string.split));
                 updateFieldInTable(x, DatabaseHelper.PROJECT_TABLE, 0, "title", getString(R.string.no_project));
-                updateFieldInTable(x, DatabaseHelper.LOCATIONS_TABLE, 0, "name", getString(R.string.current_location));
-                updateFieldInTable(x, DatabaseHelper.LOCATIONS_TABLE, 0, "title", getString(R.string.current_location));
+                updateFieldInTable(x, DatabaseHelper.LOCATIONS_TABLE, 0, "name",
+                        getString(R.string.current_location));
+                updateFieldInTable(x, DatabaseHelper.LOCATIONS_TABLE, 0, "title",
+                        getString(R.string.current_location));
                 x.setTransactionSuccessful();
             } finally {
                 x.endTransaction();
@@ -134,29 +152,8 @@ public class MainActivity extends TabActivity implements TabHost.OnTabChangeList
             db.close();
         }
         long t4 = System.currentTimeMillis();
-        Log.d("Financisto", "Load time = " + (t4 - t0) + "ms = " + (t2 - t1) + "ms+" + (t3 - t2) + "ms+" + (t4 - t3) + "ms");
-    }
-
-    private void updateFieldInTable(SQLiteDatabase db, String table, long id, String field, String value) {
-        db.execSQL("update " + table + " set " + field + "=? where _id=?", new Object[]{value, id});
-    }
-
-    @Override
-    public void onTabChanged(String tabId) {
-        Log.d("Financisto", "About to update tab " + tabId);
-        long t0 = System.currentTimeMillis();
-        refreshCurrentTab();
-        long t1 = System.currentTimeMillis();
-        Log.d("Financisto", "Tab " + tabId + " updated in " + (t1 - t0) + "ms");
-    }
-
-    public void refreshCurrentTab() {
-        Activity currentActivity = getLocalActivityManager().getCurrentActivity();
-        if (currentActivity instanceof RefreshSupportedActivity) {
-            RefreshSupportedActivity activity = (RefreshSupportedActivity) currentActivity;
-            activity.recreateCursor();
-            activity.integrityCheck();
-        }
+        Log.d("Financisto",
+                "Load time = " + (t4 - t0) + "ms = " + (t2 - t1) + "ms+" + (t3 - t2) + "ms+" + (t4 - t3) + "ms");
     }
 
     private void setupAccountsTab(TabHost tabHost) {
@@ -180,16 +177,20 @@ public class MainActivity extends TabActivity implements TabHost.OnTabChangeList
                 .setContent(new Intent(this, BudgetListActivity.class)));
     }
 
+    private void setupMenuTab(TabHost tabHost) {
+        tabHost.addTab(tabHost.newTabSpec("menu")
+                .setIndicator(getString(R.string.menu), getResources().getDrawable(R.drawable.ic_tab_menu))
+                .setContent(new Intent(this, MenuListActivity_.class)));
+    }
+
     private void setupReportsTab(TabHost tabHost) {
         tabHost.addTab(tabHost.newTabSpec("reports")
                 .setIndicator(getString(R.string.reports), getResources().getDrawable(R.drawable.ic_tab_reports))
                 .setContent(new Intent(this, ReportsListActivity.class)));
     }
 
-    private void setupMenuTab(TabHost tabHost) {
-        tabHost.addTab(tabHost.newTabSpec("menu")
-                .setIndicator(getString(R.string.menu), getResources().getDrawable(R.drawable.ic_tab_menu))
-                .setContent(new Intent(this, MenuListActivity_.class)));
+    private void updateFieldInTable(SQLiteDatabase db, String table, long id, String field, String value) {
+        db.execSQL("update " + table + " set " + field + "=? where _id=?", new Object[]{value, id});
     }
 
 }

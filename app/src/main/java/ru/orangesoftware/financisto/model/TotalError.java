@@ -9,16 +9,17 @@ package ru.orangesoftware.financisto.model;
 
 public class TotalError {
 
-    public static TotalError lastRateError(Currency currency) {
-        return new TotalError(currency, System.currentTimeMillis());
-    }
+    public final Currency currency;
+
+    public final long datetime;
 
     public static TotalError atDateRateError(Currency currency, long datetime) {
         return new TotalError(currency, datetime);
     }
 
-    public final Currency currency;
-	public final long datetime;
+    public static TotalError lastRateError(Currency currency) {
+        return new TotalError(currency, System.currentTimeMillis());
+    }
 
     private TotalError(Currency currency, long datetime) {
         this.currency = currency;

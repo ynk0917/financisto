@@ -8,9 +8,6 @@
 
 package ru.orangesoftware.financisto.utils;
 
-import android.test.AndroidTestCase;
-import ru.orangesoftware.financisto.datetime.Period;
-import ru.orangesoftware.financisto.datetime.PeriodType;
 import static ru.orangesoftware.financisto.datetime.PeriodType.LAST_MONTH;
 import static ru.orangesoftware.financisto.datetime.PeriodType.LAST_WEEK;
 import static ru.orangesoftware.financisto.datetime.PeriodType.NEXT_3_MONTHS;
@@ -24,8 +21,12 @@ import static ru.orangesoftware.financisto.datetime.PeriodType.THIS_WEEK;
 import static ru.orangesoftware.financisto.datetime.PeriodType.TODAY;
 import static ru.orangesoftware.financisto.datetime.PeriodType.TOMORROW;
 import static ru.orangesoftware.financisto.datetime.PeriodType.YESTERDAY;
-import ru.orangesoftware.financisto.test.DateTime;
 import static ru.orangesoftware.financisto.test.DateTime.date;
+
+import android.test.AndroidTestCase;
+import ru.orangesoftware.financisto.datetime.Period;
+import ru.orangesoftware.financisto.datetime.PeriodType;
+import ru.orangesoftware.financisto.test.DateTime;
 
 /**
  * Created by IntelliJ IDEA.
@@ -54,14 +55,14 @@ public class DateUtilsTest extends AndroidTestCase {
         assertPeriod(NEXT_3_MONTHS, date(2012, 8, 1), date(2012, 10, 31));
     }
 
-    private void givenRefTime(DateTime dateTime) {
-        refTime = dateTime.asLong();
-    }
-
     private void assertPeriod(PeriodType periodType, DateTime start, DateTime end) {
         Period period = periodType.calculatePeriod(refTime);
         assertEquals(start.atMidnight().asLong(), period.start);
         assertEquals(end.atDayEnd().asLong(), period.end);
+    }
+
+    private void givenRefTime(DateTime dateTime) {
+        refTime = dateTime.asLong();
     }
 
 }

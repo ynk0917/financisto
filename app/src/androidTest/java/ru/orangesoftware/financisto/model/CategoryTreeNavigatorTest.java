@@ -8,16 +8,16 @@
 
 package ru.orangesoftware.financisto.model;
 
+import java.util.List;
+import java.util.Map;
 import ru.orangesoftware.financisto.db.AbstractDbTest;
 import ru.orangesoftware.financisto.test.CategoryBuilder;
 
-import java.util.List;
-import java.util.Map;
-
 public class CategoryTreeNavigatorTest extends AbstractDbTest {
 
-    Map<String,Category> categories;
-    CategoryTreeNavigator navigator;    
+    Map<String, Category> categories;
+
+    CategoryTreeNavigator navigator;
 
     @Override
     public void setUp() throws Exception {
@@ -32,7 +32,7 @@ public class CategoryTreeNavigatorTest extends AbstractDbTest {
         categories = CategoryBuilder.createDefaultHierarchy(db);
         navigator = new CategoryTreeNavigator(db);
     }
-    
+
     public void test_should_add_expense_income_level() {
         navigator.separateIncomeAndExpense();
         assertSelected(Category.NO_CATEGORY_ID, "<NO_CATEGORY>", "<INCOME>", "<EXPENSE>");
@@ -50,13 +50,6 @@ public class CategoryTreeNavigatorTest extends AbstractDbTest {
         assertSelected(Category.NO_CATEGORY_ID, "<NO_CATEGORY>", "<INCOME>", "<EXPENSE>");
     }
 
-    public void test_should_select_startup_category() {
-        long selectedCategoryId = categories.get("AA1").id;
-        navigator.selectCategory(selectedCategoryId);
-        assertEquals(selectedCategoryId, navigator.selectedCategoryId);
-        assertSelected(selectedCategoryId, "A1", "AA1");
-    }
-    
     public void test_should_navigate_to_category() {
         long categoryId = categories.get("A").id;
         navigator.navigateTo(categoryId);
@@ -88,12 +81,19 @@ public class CategoryTreeNavigatorTest extends AbstractDbTest {
         assertFalse(navigator.goBack());
     }
 
+    public void test_should_select_startup_category() {
+        long selectedCategoryId = categories.get("AA1").id;
+        navigator.selectCategory(selectedCategoryId);
+        assertEquals(selectedCategoryId, navigator.selectedCategoryId);
+        assertSelected(selectedCategoryId, "A1", "AA1");
+    }
+
     private void assertSelected(long selectedCategoryId, String... categories) {
         assertEquals(selectedCategoryId, navigator.selectedCategoryId);
         List<Category> roots = navigator.getSelectedRoots();
         assertEquals("Got too many or too few categories", categories.length, roots.size());
-        for (int i=0; i<categories.length; i++) {
-            assertEquals("Unexpected category on index "+i, categories[i], roots.get(i).title);
+        for (int i = 0; i < categories.length; i++) {
+            assertEquals("Unexpected category on index " + i, categories[i], roots.get(i).title);
         }
     }
 

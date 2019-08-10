@@ -26,21 +26,29 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.TextView;
-import ru.orangesoftware.financisto.R;
-
 import java.util.List;
+import ru.orangesoftware.financisto.R;
 
 /**
  * A {@link QuickActionGrid} is an implementation of a {@link QuickActionWidget}
  * that displays {@link greendroid.widget.QuickAction}s in a grid manner. This is usually used to create
  * a shortcut to jump between different type of information on screen.
- * 
+ *
  * @author Benjamin Fellous
  * @author Cyril Mottier
  */
 public class QuickActionGrid extends QuickActionWidget {
 
     private GridView mGridView;
+
+    private OnItemClickListener mInternalItemClickListener = new OnItemClickListener() {
+        public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
+            getOnQuickActionClickListener().onQuickActionClicked(QuickActionGrid.this, position);
+            if (getDismissOnClick()) {
+                dismiss();
+            }
+        }
+    };
 
     public QuickActionGrid(Context context) {
         super(context);
@@ -53,43 +61,6 @@ public class QuickActionGrid extends QuickActionWidget {
 
     public void setNumColumns(int columns) {
         mGridView.setNumColumns(columns);
-    }
-
-    @Override
-    protected void populateQuickActions(final List<QuickAction> quickActions) {
-        mGridView.setAdapter(new BaseAdapter() {
-
-            public View getView(int position, View view, ViewGroup parent) {
-
-                TextView textView = (TextView) view;
-
-                if (view == null) {
-                    final LayoutInflater inflater = LayoutInflater.from(getContext());
-                    textView = (TextView) inflater.inflate(R.layout.gd_quick_action_grid_item, mGridView, false);
-                }
-
-                QuickAction quickAction = quickActions.get(position);
-                textView.setText(quickAction.mTitle);
-                textView.setCompoundDrawablesWithIntrinsicBounds(null, quickAction.mDrawable, null, null);
-
-                return textView;
-
-            }
-
-            public long getItemId(int position) {
-                return position;
-            }
-
-            public Object getItem(int position) {
-                return null;
-            }
-
-            public int getCount() {
-                return quickActions.size();
-            }
-        });
-
-        mGridView.setOnItemClickListener(mInternalItemClickListener);
     }
 
     @Override
@@ -111,13 +82,41 @@ public class QuickActionGrid extends QuickActionWidget {
         setWidgetSpecs(popupY, onTop);
     }
 
-    private OnItemClickListener mInternalItemClickListener = new OnItemClickListener() {
-        public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
-            getOnQuickActionClickListener().onQuickActionClicked(QuickActionGrid.this, position);
-            if (getDismissOnClick()) {
-                dismiss();
+    @Override
+    protected void populateQuickActions(final List<QuickAction> quickActions) {
+        mGridView.setAdapter(new BaseAdapter() {
+
+            public int getCount() {
+                return quickActions.size();
             }
-        }
-    };
+
+            public Object getItem(int position) {
+                return null;
+            }
+
+            public long getItemId(int position) {
+                return position;
+            }
+
+            public View getView(int position, View view, ViewGroup parent) {
+
+                TextView textView = (TextView) view;
+
+                if (view == null) {
+                    final LayoutInflater inflater = LayoutInflater.from(getContext());
+                    textView = (TextView) inflater.inflate(R.layout.gd_quick_action_grid_item, mGridView, false);
+                }
+
+                QuickAction quickAction = quickActions.get(position);
+                textView.setText(quickAction.mTitle);
+                textView.setCompoundDrawablesWithIntrinsicBounds(null, quickAction.mDrawable, null, null);
+
+                return textView;
+
+            }
+        });
+
+        mGridView.setOnItemClickListener(mInternalItemClickListener);
+    }
 
 }

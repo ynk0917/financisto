@@ -21,7 +21,6 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.model.Attribute;
 import ru.orangesoftware.financisto.model.TransactionAttribute;
@@ -29,9 +28,11 @@ import ru.orangesoftware.financisto.view.NodeInflater.Builder;
 import ru.orangesoftware.financisto.view.NodeInflater.CheckBoxBuilder;
 
 public abstract class AttributeView implements OnClickListener {
+
     public final Attribute attribute;
 
     protected final Context context;
+
     protected final NodeInflater inflater;
 
     public AttributeView(Context context, Attribute attribute) {
@@ -41,14 +42,7 @@ public abstract class AttributeView implements OnClickListener {
         this.inflater = new NodeInflater(layoutInflater);
     }
 
-    @Override
-    public void onClick(View view) {
-        // do nothing by default
-    }
-
     public abstract View inflateView(LinearLayout layout, String value);
-
-    public abstract String value();
 
     public TransactionAttribute newTransactionAttribute() {
         TransactionAttribute ta = new TransactionAttribute();
@@ -56,6 +50,13 @@ public abstract class AttributeView implements OnClickListener {
         ta.value = value();
         return ta;
     }
+
+    @Override
+    public void onClick(View view) {
+        // do nothing by default
+    }
+
+    public abstract String value();
 
 }
 
@@ -113,6 +114,7 @@ class NumberAttributeView extends AttributeView {
 class ListAttributeView extends AttributeView {
 
     private final String[] items;
+
     private int selectedIndex = -1;
 
     public ListAttributeView(Context context, Attribute attribute) {
@@ -138,7 +140,8 @@ class ListAttributeView extends AttributeView {
 
     @Override
     public void onClick(final View view) {
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.select_dialog_singlechoice, items);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, android.R.layout.select_dialog_singlechoice,
+                items);
         new AlertDialog.Builder(context)
                 .setSingleChoiceItems(adapter, selectedIndex, (dialog, which) -> {
                     dialog.dismiss();

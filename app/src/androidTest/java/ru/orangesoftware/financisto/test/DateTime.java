@@ -2,7 +2,6 @@ package ru.orangesoftware.financisto.test;
 
 import java.util.Calendar;
 import java.util.Date;
-import java.util.TimeZone;
 
 /**
  * Created by IntelliJ IDEA.
@@ -11,7 +10,7 @@ import java.util.TimeZone;
  */
 public class DateTime {
 
-    public static DateTime NULL_DATE = new DateTime(){
+    public static DateTime NULL_DATE = new DateTime() {
         @Override
         public Date asDate() {
             return new Date(0);
@@ -25,16 +24,10 @@ public class DateTime {
 
     private final Calendar c = Calendar.getInstance();
 
-    private DateTime() {}
-
-    public static DateTime today() {
-        return new DateTime();
-    }
-
     public static DateTime date(int year, int month, int day) {
         DateTime dt = new DateTime();
         dt.c.set(Calendar.YEAR, year);
-        dt.c.set(Calendar.MONTH, month-1);
+        dt.c.set(Calendar.MONTH, month - 1);
         dt.c.set(Calendar.DAY_OF_MONTH, day);
         return dt.atMidnight();
     }
@@ -45,16 +38,19 @@ public class DateTime {
         return dt;
     }
 
-    public DateTime atMidnight() {
-        return at(0, 0, 0, 0);
+    public static DateTime today() {
+        return new DateTime();
     }
 
-    public DateTime atNoon() {
-        return at(12, 0, 0, 0);
+    private DateTime() {
     }
 
-    public DateTime atDayEnd() {
-        return at(23, 59, 59, 999);
+    public Date asDate() {
+        return c.getTime();
+    }
+
+    public long asLong() {
+        return c.getTimeInMillis();
     }
 
     public DateTime at(int hh, int mm, int ss, int ms) {
@@ -65,12 +61,16 @@ public class DateTime {
         return this;
     }
 
-    public long asLong() {
-        return c.getTimeInMillis();
+    public DateTime atDayEnd() {
+        return at(23, 59, 59, 999);
     }
 
-    public Date asDate() {
-        return c.getTime();
+    public DateTime atMidnight() {
+        return at(0, 0, 0, 0);
+    }
+
+    public DateTime atNoon() {
+        return at(12, 0, 0, 0);
     }
 
 }

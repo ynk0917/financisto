@@ -21,11 +21,9 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.TextView;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.model.Account;
 import ru.orangesoftware.financisto.model.Budget;
@@ -42,32 +40,76 @@ import ru.orangesoftware.financisto.widget.AmountInput_;
 
 public class BudgetActivity extends AbstractActivity {
 
+    private static class AccountOption {
+
+        public final Account account;
+
+        public final Currency currency;
+
+        public final String title;
+
+        private AccountOption(String title, Currency currency, Account account) {
+            this.title = title;
+            this.currency = currency;
+            this.account = account;
+        }
+
+        public boolean matches(Budget budget) {
+            return (currency != null && budget.currency != null && currency.id == budget.currency.id) ||
+                    (account != null && budget.account != null && account.id == budget.account.id);
+        }
+
+        @Override
+        public String toString() {
+            return title;
+        }
+
+        public void updateBudget(Budget budget) {
+            budget.currency = currency;
+            budget.account = account;
+        }
+
+    }
+
     public static final String BUDGET_ID_EXTRA = "budgetId";
 
     private static final int NEW_CATEGORY_REQUEST = 1;
+
     private static final int NEW_PROJECT_REQUEST = 2;
+
     private static final int RECUR_REQUEST = 3;
+
+    private ListAdapter accountAdapter;
+
+    private List<AccountOption> accountOptions;
+
+    private TextView accountText;
 
     private AmountInput amountInput;
 
-    private EditText titleText;
-    private TextView categoryText;
-    private TextView projectText;
-    private TextView accountText;
-    private TextView periodRecurText;
-    private CheckBox cbMode;
-    private CheckBox cbIncludeSubCategories;
-    private CheckBox cbIncludeCredit;
-    private CheckBox cbSavingBudget;
-
     private Budget budget = new Budget();
 
-    private List<AccountOption> accountOptions;
     private List<Category> categories;
+
+    private TextView categoryText;
+
+    private CheckBox cbIncludeCredit;
+
+    private CheckBox cbIncludeSubCategories;
+
+    private CheckBox cbMode;
+
+    private CheckBox cbSavingBudget;
+
+    private TextView periodRecurText;
+
+    private TextView projectText;
+
     private List<Project> projects;
 
-    private ListAdapter accountAdapter;
     private int selectedAccountOption;
+
+    private EditText titleText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -143,74 +185,48 @@ public class BudgetActivity extends AbstractActivity {
 
     }
 
-    private List<AccountOption> createAccountsList() {
-        List<AccountOption> accounts = new ArrayList<>();
-        List<Currency> currenciesList = db.getAllCurrenciesList("name");
-        for (Currency currency : currenciesList) {
-            String title = getString(R.string.account_by_currency, currency.name);
-            accounts.add(new AccountOption(title, currency, null));
-        }
-        List<Account> accountsList = db.getAllAccountsList();
-        for (Account account : accountsList) {
-            accounts.add(new AccountOption(account.title, null, account));
-        }
-        return accounts;
-    }
-
-    private void editBudget() {
-        titleText.setText(budget.title);
-        amountInput.setAmount(budget.amount);
-        updateEntities(this.categories, budget.categories);
-        selectCategories();
-        updateEntities(this.projects, budget.projects);
-        selectProjects();
-        selectAccount(budget);
-        selectRecur(budget.recur);
-        cbIncludeSubCategories.setChecked(budget.includeSubcategories);
-        cbIncludeCredit.setChecked(budget.includeCredit);
-        cbMode.setChecked(budget.expanded);
-        cbSavingBudget.setChecked(budget.amount < 0);
-    }
-
-    private void updateEntities(List<? extends MyEntity> list, String selected) {
-        if (!Utils.isEmpty(selected)) {
-            String[] a = selected.split(",");
-            for (String s : a) {
-                long id = Long.parseLong(s);
-                for (MyEntity e : list) {
-                    if (e.id == id) {
-                        e.checked = true;
-                        break;
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            switch (requestCode) {
+                case NEW_CATEGORY_REQUEST:
+                    categories = merge(categories, db.getCategoriesList(true));
+                    break;
+                case NEW_PROJECT_REQUEST:
+                    projects = merge(projects, db.getActiveProjectsList(true));
+                    break;
+                case RECUR_REQUEST:
+                    String recur = data.getStringExtra(RecurActivity.EXTRA_RECUR);
+                    if (recur != null) {
+                        selectRecur(recur);
                     }
-                }
+                    break;
+                default:
+                    break;
             }
         }
     }
 
-    private String getSelectedAsString(List<? extends MyEntity> list) {
-        StringBuilder sb = new StringBuilder();
-        for (MyEntity e : list) {
-            if (e.checked) {
-                if (sb.length() > 0) {
-                    sb.append(",");
-                }
-                sb.append(e.id);
-            }
+    @Override
+    public void onSelected(int id, List<? extends MultiChoiceItem> items) {
+        switch (id) {
+            case R.id.category:
+                selectCategories();
+                break;
+            case R.id.project:
+                selectProjects();
+                break;
         }
-        return sb.length() > 0 ? sb.toString() : "";
     }
 
-    protected void updateBudgetFromUI() {
-        budget.title = titleText.getText().toString();
-        budget.amount = amountInput.getAmount();
-        if (cbSavingBudget.isChecked()) {
-            budget.amount = -budget.amount;
+    @Override
+    public void onSelectedPos(int id, int selectedPos) {
+        switch (id) {
+            case R.id.account:
+                selectAccount(selectedPos);
+                break;
         }
-        budget.includeSubcategories = cbIncludeSubCategories.isChecked();
-        budget.includeCredit = cbIncludeCredit.isChecked();
-        budget.expanded = cbMode.isChecked();
-        budget.categories = getSelectedAsString(categories);
-        budget.projects = getSelectedAsString(projects);
     }
 
     @Override
@@ -258,25 +274,72 @@ public class BudgetActivity extends AbstractActivity {
         }
     }
 
-    @Override
-    public void onSelectedPos(int id, int selectedPos) {
-        switch (id) {
-            case R.id.account:
-                selectAccount(selectedPos);
-                break;
+    protected void updateBudgetFromUI() {
+        budget.title = titleText.getText().toString();
+        budget.amount = amountInput.getAmount();
+        if (cbSavingBudget.isChecked()) {
+            budget.amount = -budget.amount;
         }
+        budget.includeSubcategories = cbIncludeSubCategories.isChecked();
+        budget.includeCredit = cbIncludeCredit.isChecked();
+        budget.expanded = cbMode.isChecked();
+        budget.categories = getSelectedAsString(categories);
+        budget.projects = getSelectedAsString(projects);
     }
 
-    @Override
-    public void onSelected(int id, List<? extends MultiChoiceItem> items) {
-        switch (id) {
-            case R.id.category:
-                selectCategories();
-                break;
-            case R.id.project:
-                selectProjects();
-                break;
+    private List<AccountOption> createAccountsList() {
+        List<AccountOption> accounts = new ArrayList<>();
+        List<Currency> currenciesList = db.getAllCurrenciesList("name");
+        for (Currency currency : currenciesList) {
+            String title = getString(R.string.account_by_currency, currency.name);
+            accounts.add(new AccountOption(title, currency, null));
         }
+        List<Account> accountsList = db.getAllAccountsList();
+        for (Account account : accountsList) {
+            accounts.add(new AccountOption(account.title, null, account));
+        }
+        return accounts;
+    }
+
+    private void editBudget() {
+        titleText.setText(budget.title);
+        amountInput.setAmount(budget.amount);
+        updateEntities(this.categories, budget.categories);
+        selectCategories();
+        updateEntities(this.projects, budget.projects);
+        selectProjects();
+        selectAccount(budget);
+        selectRecur(budget.recur);
+        cbIncludeSubCategories.setChecked(budget.includeSubcategories);
+        cbIncludeCredit.setChecked(budget.includeCredit);
+        cbMode.setChecked(budget.expanded);
+        cbSavingBudget.setChecked(budget.amount < 0);
+    }
+
+    private String getCheckedEntities(List<? extends MyEntity> list) {
+        StringBuilder sb = new StringBuilder();
+        for (MyEntity e : list) {
+            if (e.checked) {
+                if (sb.length() > 0) {
+                    sb.append(", ");
+                }
+                sb.append(e.title);
+            }
+        }
+        return sb.toString();
+    }
+
+    private String getSelectedAsString(List<? extends MyEntity> list) {
+        StringBuilder sb = new StringBuilder();
+        for (MyEntity e : list) {
+            if (e.checked) {
+                if (sb.length() > 0) {
+                    sb.append(",");
+                }
+                sb.append(e.id);
+            }
+        }
+        return sb.length() > 0 ? sb.toString() : "";
     }
 
     private void selectAccount(Budget budget) {
@@ -301,15 +364,6 @@ public class BudgetActivity extends AbstractActivity {
         }
     }
 
-    private void selectProjects() {
-        String selectedProjects = getCheckedEntities(this.projects);
-        if (Utils.isEmpty(selectedProjects)) {
-            projectText.setText(R.string.no_projects);
-        } else {
-            projectText.setText(selectedProjects);
-        }
-    }
-
     private void selectCategories() {
         String selectedCategories = getCheckedEntities(this.categories);
         if (Utils.isEmpty(selectedCategories)) {
@@ -319,17 +373,13 @@ public class BudgetActivity extends AbstractActivity {
         }
     }
 
-    private String getCheckedEntities(List<? extends MyEntity> list) {
-        StringBuilder sb = new StringBuilder();
-        for (MyEntity e : list) {
-            if (e.checked) {
-                if (sb.length() > 0) {
-                    sb.append(", ");
-                }
-                sb.append(e.title);
-            }
+    private void selectProjects() {
+        String selectedProjects = getCheckedEntities(this.projects);
+        if (Utils.isEmpty(selectedProjects)) {
+            projectText.setText(R.string.no_projects);
+        } else {
+            projectText.setText(selectedProjects);
         }
-        return sb.toString();
     }
 
     private void selectRecur(String recur) {
@@ -340,25 +390,17 @@ public class BudgetActivity extends AbstractActivity {
         }
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            switch (requestCode) {
-                case NEW_CATEGORY_REQUEST:
-                    categories = merge(categories, db.getCategoriesList(true));
-                    break;
-                case NEW_PROJECT_REQUEST:
-                    projects = merge(projects, db.getActiveProjectsList(true));
-                    break;
-                case RECUR_REQUEST:
-                    String recur = data.getStringExtra(RecurActivity.EXTRA_RECUR);
-                    if (recur != null) {
-                        selectRecur(recur);
+    private void updateEntities(List<? extends MyEntity> list, String selected) {
+        if (!Utils.isEmpty(selected)) {
+            String[] a = selected.split(",");
+            for (String s : a) {
+                long id = Long.parseLong(s);
+                for (MyEntity e : list) {
+                    if (e.id == id) {
+                        e.checked = true;
+                        break;
                     }
-                    break;
-                default:
-                    break;
+                }
             }
         }
     }
@@ -375,36 +417,6 @@ public class BudgetActivity extends AbstractActivity {
             }
         }
         return newList;
-    }
-
-    private static class AccountOption {
-
-        public final String title;
-        public final Currency currency;
-        public final Account account;
-
-        private AccountOption(String title, Currency currency, Account account) {
-            this.title = title;
-            this.currency = currency;
-            this.account = account;
-        }
-
-        @Override
-        public String toString() {
-            return title;
-        }
-
-
-        public boolean matches(Budget budget) {
-            return (currency != null && budget.currency != null && currency.id == budget.currency.id) ||
-                    (account != null && budget.account != null && account.id == budget.account.id);
-        }
-
-        public void updateBudget(Budget budget) {
-            budget.currency = currency;
-            budget.account = account;
-        }
-
     }
 
 }

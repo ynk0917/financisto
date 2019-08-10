@@ -10,6 +10,8 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.activity.UiUtils.applyTheme;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -26,12 +28,9 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.SpinnerAdapter;
-
 import com.wdullaer.materialdatetimepicker.date.DatePickerDialog;
-
 import java.text.DateFormat;
 import java.util.Calendar;
-
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.datetime.DateUtils;
 import ru.orangesoftware.financisto.utils.LocalizableEnum;
@@ -48,29 +47,45 @@ import ru.orangesoftware.financisto.utils.RecurUtils.SemiMonthly;
 import ru.orangesoftware.financisto.utils.RecurUtils.Weekly;
 import ru.orangesoftware.financisto.utils.Utils;
 
-import static ru.orangesoftware.financisto.activity.UiUtils.applyTheme;
-
 public class RecurActivity extends Activity {
+
+    private static class SpinnerItem {
+
+        public final String title;
+
+        public final String value;
+
+        public SpinnerItem(String title, String value) {
+            super();
+            this.title = title;
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return title;
+        }
+    }
 
     public static final String EXTRA_RECUR = "recur";
 
     private static final RecurPeriod[] periods = RecurPeriod.values();
 
-    private Spinner sInterval;
-    private Spinner sPeriod;
-    private LinearLayout layoutInterval;
-    private LinearLayout layoutRecur;
     private Button bStartDate;
-
-    private final Calendar startDate = Calendar.getInstance();
-    private final Calendar stopsOnDate = Calendar.getInstance();
 
     private DateFormat df;
 
-    @Override
-    protected void attachBaseContext(Context base) {
-        super.attachBaseContext(MyPreferences.switchLocale(base));
-    }
+    private LinearLayout layoutInterval;
+
+    private LinearLayout layoutRecur;
+
+    private Spinner sInterval;
+
+    private Spinner sPeriod;
+
+    private final Calendar startDate = Calendar.getInstance();
+
+    private final Calendar stopsOnDate = Calendar.getInstance();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,7 +122,8 @@ public class RecurActivity extends Activity {
             dialog.show(getFragmentManager(), "DatePickerDialog");
         });
 
-        addSpinnerItems(sInterval, new RecurInterval[]{RecurInterval.NO_RECUR, RecurInterval.WEEKLY, RecurInterval.MONTHLY});
+        addSpinnerItems(sInterval,
+                new RecurInterval[]{RecurInterval.NO_RECUR, RecurInterval.WEEKLY, RecurInterval.MONTHLY});
         addSpinnerItems(sPeriod, periods);
 
         LayoutInflater inflater = getLayoutInflater();
@@ -173,38 +189,39 @@ public class RecurActivity extends Activity {
 
     }
 
-    private static class SpinnerItem {
-        public final String title;
-        public final String value;
-
-        public SpinnerItem(String title, String value) {
-            super();
-            this.title = title;
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            return title;
-        }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        PinProtection.unlock(this);
     }
 
-    private void addSpinnerItems(Spinner spinner, LocalizableEnum[] a) {
-        int length = a.length;
-        SpinnerItem[] items = new SpinnerItem[length];
-        for (int i = 0; i < length; i++) {
-            LocalizableEnum x = a[i];
-            String title = getString(x.getTitleId());
-            String value = x.name();
-            items[i] = new SpinnerItem(title, value);
-        }
-        ArrayAdapter<SpinnerItem> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, items);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
+    @Override
+    protected void onPause() {
+        super.onPause();
+        PinProtection.lock(this);
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(MyPreferences.switchLocale(base));
     }
 
     protected RecurInterval getRecurInterval(Object item) {
         return RecurInterval.valueOf(((SpinnerItem) item).value);
+    }
+
+    protected View selectInterval(RecurInterval interval) {
+        if (interval == RecurInterval.NO_RECUR) {
+            sPeriod.setSelection(RecurPeriod.STOPS_ON_DATE.ordinal());
+            sPeriod.setEnabled(false);
+        } else {
+            sPeriod.setEnabled(true);
+        }
+        return selectInLayout(layoutInterval, interval);
+    }
+
+    protected View selectPeriod(RecurPeriod period) {
+        return selectInLayout(layoutRecur, period);
     }
 
     protected boolean updateInterval(Recur r) {
@@ -266,6 +283,31 @@ public class RecurActivity extends Activity {
         }
     }
 
+    private void addSpinnerItems(Spinner spinner, LocalizableEnum[] a) {
+        int length = a.length;
+        SpinnerItem[] items = new SpinnerItem[length];
+        for (int i = 0; i < length; i++) {
+            LocalizableEnum x = a[i];
+            String title = getString(x.getTitleId());
+            String value = x.name();
+            items[i] = new SpinnerItem(title, value);
+        }
+        ArrayAdapter<SpinnerItem> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, items);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+    }
+
+    private void editEveryXDay(View v, Recur recur) {
+        EveryXDay x = (EveryXDay) recur;
+        EditText t = v.findViewById(R.id.edEveryXDays);
+        t.setText(String.valueOf(x.days));
+    }
+
+    private void editExactlyTimes(View v, long times) {
+        EditText e = v.findViewById(R.id.edTimes);
+        e.setText(times > 0 ? String.valueOf(times) : "1");
+    }
+
     private void editRecur(Recur recur) {
         editStartDate(recur.startDate);
         RecurInterval interval = recur.interval;
@@ -303,22 +345,50 @@ public class RecurActivity extends Activity {
         }
     }
 
-    private void editEveryXDay(View v, Recur recur) {
-        EveryXDay x = (EveryXDay) recur;
-        EditText t = v.findViewById(R.id.edEveryXDays);
-        t.setText(String.valueOf(x.days));
-    }
-
-    private void editWeekly(View v, Recur recur) {
-        return;
-    }
-
     private void editSemiMonthly(View v, Recur recur) {
         SemiMonthly sm = (SemiMonthly) recur;
         EditText t1 = v.findViewById(R.id.edFirstDay);
         t1.setText(String.valueOf(sm.firstDay));
         EditText t2 = v.findViewById(R.id.edSecondDay);
         t2.setText(String.valueOf(sm.secondDay));
+    }
+
+    private void editStartDate(long date) {
+        Calendar c = startDate;
+        c.setTimeInMillis(date);
+        bStartDate.setText(df.format(c.getTime()));
+    }
+
+    private void editStopsOnDate(View v, long date) {
+        Calendar c = stopsOnDate;
+        c.setTimeInMillis(date);
+        Button b = v.findViewById(R.id.bStopsOnDate);
+        b.setText(df.format(c.getTime()));
+    }
+
+    private void editWeekly(View v, Recur recur) {
+        return;
+    }
+
+    private View selectInLayout(LinearLayout layout, Object tag) {
+        View selected = null;
+        int count = layout.getChildCount();
+        for (int i = 0; i < count; i++) {
+            View v = layout.getChildAt(i);
+            if (tag == v.getTag()) {
+                selected = v;
+            } else {
+                v.setVisibility(View.GONE);
+            }
+        }
+        if (selected != null) {
+            selected.setVisibility(View.VISIBLE);
+        }
+        return selected;
+    }
+
+    private void showError(EditText t, int messageId) {
+        t.setError(getString(messageId));
     }
 
     private boolean updateEveryXDay(View v, Recur r) {
@@ -332,18 +402,13 @@ public class RecurActivity extends Activity {
         return true;
     }
 
-    private void showError(EditText t, int messageId) {
-        t.setError(getString(messageId));
-    }
-
-    private boolean updateWeekly(View v, Recur r) {
-        Weekly w = (Weekly) r;
-        int i = startDate.get(Calendar.DAY_OF_WEEK);
-        DayOfWeek[] days = DayOfWeek.values();
-        for (DayOfWeek d : days) {
-            w.unset(d);
+    private boolean updateExactlyTimes(View v, Recur r) {
+        EditText e = v.findViewById(R.id.edTimes);
+        if (Utils.isEmpty(e)) {
+            showError(e, R.string.recur_error_specify_times);
+            return false;
         }
-        w.set(days[i - 1]);
+        r.periodParam = Long.parseLong(Utils.text(e));
         return true;
     }
 
@@ -364,79 +429,19 @@ public class RecurActivity extends Activity {
         return true;
     }
 
-    private void editExactlyTimes(View v, long times) {
-        EditText e = v.findViewById(R.id.edTimes);
-        e.setText(times > 0 ? String.valueOf(times) : "1");
-    }
-
-    private void editStartDate(long date) {
-        Calendar c = startDate;
-        c.setTimeInMillis(date);
-        bStartDate.setText(df.format(c.getTime()));
-    }
-
-    private void editStopsOnDate(View v, long date) {
-        Calendar c = stopsOnDate;
-        c.setTimeInMillis(date);
-        Button b = v.findViewById(R.id.bStopsOnDate);
-        b.setText(df.format(c.getTime()));
-    }
-
-    private boolean updateExactlyTimes(View v, Recur r) {
-        EditText e = v.findViewById(R.id.edTimes);
-        if (Utils.isEmpty(e)) {
-            showError(e, R.string.recur_error_specify_times);
-            return false;
-        }
-        r.periodParam = Long.parseLong(Utils.text(e));
-        return true;
-    }
-
     private boolean updateStopsOnDate(View v, Recur r) {
         r.periodParam = stopsOnDate.getTimeInMillis();
         return true;
     }
 
-    protected View selectInterval(RecurInterval interval) {
-        if (interval == RecurInterval.NO_RECUR) {
-            sPeriod.setSelection(RecurPeriod.STOPS_ON_DATE.ordinal());
-            sPeriod.setEnabled(false);
-        } else {
-            sPeriod.setEnabled(true);
+    private boolean updateWeekly(View v, Recur r) {
+        Weekly w = (Weekly) r;
+        int i = startDate.get(Calendar.DAY_OF_WEEK);
+        DayOfWeek[] days = DayOfWeek.values();
+        for (DayOfWeek d : days) {
+            w.unset(d);
         }
-        return selectInLayout(layoutInterval, interval);
-    }
-
-    protected View selectPeriod(RecurPeriod period) {
-        return selectInLayout(layoutRecur, period);
-    }
-
-    private View selectInLayout(LinearLayout layout, Object tag) {
-        View selected = null;
-        int count = layout.getChildCount();
-        for (int i = 0; i < count; i++) {
-            View v = layout.getChildAt(i);
-            if (tag == v.getTag()) {
-                selected = v;
-            } else {
-                v.setVisibility(View.GONE);
-            }
-        }
-        if (selected != null) {
-            selected.setVisibility(View.VISIBLE);
-        }
-        return selected;
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        PinProtection.lock(this);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        PinProtection.unlock(this);
+        w.set(days[i - 1]);
+        return true;
     }
 }

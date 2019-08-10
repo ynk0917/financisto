@@ -8,20 +8,18 @@
 
 package ru.orangesoftware.financisto.activity;
 
+import static ru.orangesoftware.financisto.activity.AbstractActivity.setVisibility;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.TextView;
-
 import java.util.List;
-
 import ru.orangesoftware.financisto.db.DatabaseHelper;
 import ru.orangesoftware.financisto.db.MyEntityManager;
 import ru.orangesoftware.financisto.model.MyEntity;
-
-import static ru.orangesoftware.financisto.activity.AbstractActivity.setVisibility;
 
 /**
  * Created by IntelliJ IDEA.
@@ -31,23 +29,33 @@ import static ru.orangesoftware.financisto.activity.AbstractActivity.setVisibili
 public abstract class MyEntitySelector<T extends MyEntity> {
 
     private final Activity activity;
-    private final MyEntityManager em;
-    private final ActivityLayout x;
-    private final boolean isShow;
-    private final int layoutId;
-    private final int layoutPlusId;
-    private final int labelResId;
+
+    private ListAdapter adapter;
+
     private final int defaultValueResId;
 
-    private View node;
-    private TextView text;
+    private final MyEntityManager em;
+
     private List<T> entities;
-    private ListAdapter adapter;
+
+    private final boolean isShow;
+
+    private final int labelResId;
+
+    private final int layoutId;
+
+    private final int layoutPlusId;
+
+    private View node;
 
     private long selectedEntityId = 0;
 
+    private TextView text;
+
+    private final ActivityLayout x;
+
     public MyEntitySelector(Activity activity, MyEntityManager em, ActivityLayout x, boolean isShow,
-                            int layoutId, int layoutPlusId, int labelResId, int defaultValueResId) {
+            int layoutId, int layoutPlusId, int labelResId, int defaultValueResId) {
         this.activity = activity;
         this.em = em;
         this.x = x;
@@ -58,21 +66,25 @@ public abstract class MyEntitySelector<T extends MyEntity> {
         this.defaultValueResId = defaultValueResId;
     }
 
-    protected abstract Class getEditActivityClass();
+    public void createNode(LinearLayout layout) {
+        if (isShow) {
+            text = x.addListNodePlus(layout, layoutId, layoutPlusId, labelResId, defaultValueResId);
+            node = (View) text.getTag();
+        }
+    }
 
     public void fetchEntities() {
         entities = fetchEntities(em);
         adapter = createAdapter(activity, entities);
     }
 
-    protected abstract List<T> fetchEntities(MyEntityManager em);
+    public long getSelectedEntityId() {
+        return node == null || node.getVisibility() == View.GONE ? 0 : selectedEntityId;
+    }
 
-    protected abstract ListAdapter createAdapter(Activity activity, List<T> entities);
-
-    public void createNode(LinearLayout layout) {
-        if (isShow) {
-            text = x.addListNodePlus(layout, layoutId, layoutPlusId, labelResId, defaultValueResId);
-            node = (View) text.getTag();
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == Activity.RESULT_OK && requestCode == layoutPlusId) {
+            onNewEntity(data);
         }
     }
 
@@ -85,18 +97,10 @@ public abstract class MyEntitySelector<T extends MyEntity> {
         }
     }
 
-    private void pickEntity() {
-        int selectedEntityPos = MyEntity.indexOf(entities, selectedEntityId);
-        x.selectPosition(activity, layoutId, labelResId, adapter, selectedEntityPos);
-    }
-
     public void onSelectedPos(int id, int selectedPos) {
-        if (id == layoutId) onEntitySelected(selectedPos);
-    }
-
-    private void onEntitySelected(int selectedPos) {
-        T e = entities.get(selectedPos);
-        selectEntity(e);
+        if (id == layoutId) {
+            onEntitySelected(selectedPos);
+        }
     }
 
     public void selectEntity(long entityId) {
@@ -106,17 +110,21 @@ public abstract class MyEntitySelector<T extends MyEntity> {
         }
     }
 
-    private void selectEntity(T e) {
-        if (isShow && e != null) {
-            text.setText(e.title);
-            selectedEntityId = e.id;
+    public void setNodeVisible(boolean visible) {
+        if (isShow) {
+            setVisibility(node, visible ? View.VISIBLE : View.GONE);
         }
     }
 
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == Activity.RESULT_OK && requestCode == layoutPlusId) {
-            onNewEntity(data);
-        }
+    protected abstract ListAdapter createAdapter(Activity activity, List<T> entities);
+
+    protected abstract List<T> fetchEntities(MyEntityManager em);
+
+    protected abstract Class getEditActivityClass();
+
+    private void onEntitySelected(int selectedPos) {
+        T e = entities.get(selectedPos);
+        selectEntity(e);
     }
 
     private void onNewEntity(Intent data) {
@@ -127,14 +135,16 @@ public abstract class MyEntitySelector<T extends MyEntity> {
         }
     }
 
-    public void setNodeVisible(boolean visible) {
-        if (isShow) {
-            setVisibility(node, visible ? View.VISIBLE : View.GONE);
-        }
+    private void pickEntity() {
+        int selectedEntityPos = MyEntity.indexOf(entities, selectedEntityId);
+        x.selectPosition(activity, layoutId, labelResId, adapter, selectedEntityPos);
     }
 
-    public long getSelectedEntityId() {
-        return node == null || node.getVisibility() == View.GONE ? 0 : selectedEntityId;
+    private void selectEntity(T e) {
+        if (isShow && e != null) {
+            text.setText(e.title);
+            selectedEntityId = e.id;
+        }
     }
 
 }

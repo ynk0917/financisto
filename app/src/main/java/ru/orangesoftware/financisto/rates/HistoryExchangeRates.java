@@ -10,9 +10,10 @@ package ru.orangesoftware.financisto.rates;
 
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import java.util.List;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import ru.orangesoftware.financisto.model.Currency;
-
-import java.util.*;
 
 /**
  * Not thread safe
@@ -24,8 +25,9 @@ import java.util.*;
 public class HistoryExchangeRates implements ExchangeRateProvider, ExchangeRatesCollection {
 
     private static final ExchangeRate r = new ExchangeRate();
-    
-    private final TLongObjectMap<TLongObjectMap<SortedSet<ExchangeRate>>> rates = new TLongObjectHashMap<TLongObjectMap<SortedSet<ExchangeRate>>>();
+
+    private final TLongObjectMap<TLongObjectMap<SortedSet<ExchangeRate>>> rates
+            = new TLongObjectHashMap<TLongObjectMap<SortedSet<ExchangeRate>>>();
 
     @Override
     public void addRate(ExchangeRate r) {
@@ -58,11 +60,6 @@ public class HistoryExchangeRates implements ExchangeRateProvider, ExchangeRates
         throw new UnsupportedOperationException();
     }
 
-    private SortedSet<ExchangeRate> getRates(long fromCurrencyId, long toCurrencyId) {
-        TLongObjectMap<SortedSet<ExchangeRate>> map = getMapFor(fromCurrencyId);
-        return getSetFor(map, toCurrencyId);
-    }
-
     private TLongObjectMap<SortedSet<ExchangeRate>> getMapFor(long fromCurrencyId) {
         TLongObjectMap<SortedSet<ExchangeRate>> m = rates.get(fromCurrencyId);
         if (m == null) {
@@ -71,7 +68,12 @@ public class HistoryExchangeRates implements ExchangeRateProvider, ExchangeRates
         }
         return m;
     }
-    
+
+    private SortedSet<ExchangeRate> getRates(long fromCurrencyId, long toCurrencyId) {
+        TLongObjectMap<SortedSet<ExchangeRate>> map = getMapFor(fromCurrencyId);
+        return getSetFor(map, toCurrencyId);
+    }
+
     private SortedSet<ExchangeRate> getSetFor(TLongObjectMap<SortedSet<ExchangeRate>> rates, long date) {
         SortedSet<ExchangeRate> s = rates.get(date);
         if (s == null) {

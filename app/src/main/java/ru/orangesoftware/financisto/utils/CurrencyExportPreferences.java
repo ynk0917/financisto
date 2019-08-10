@@ -23,25 +23,45 @@ import ru.orangesoftware.financisto.model.Currency;
 public class CurrencyExportPreferences {
 
     public static final String EXPORT_DECIMALS = "EXPORT_DECIMALS";
+
     public static final String EXPORT_DECIMAL_SEPARATOR = "EXPORT_DECIMAL_SEPARATOR";
+
     public static final String EXPORT_GROUP_SEPARATOR = "EXPORT_GROUP_SEPARATOR";
 
     private final String prefix;
-
-    public CurrencyExportPreferences(String prefix) {
-        this.prefix = prefix.toUpperCase();
-    }
 
     public static Currency fromIntent(Intent data, String prefix) {
         CurrencyExportPreferences preferences = new CurrencyExportPreferences(prefix);
         return preferences.getCurrencyFromIntent(data);
     }
 
+    public CurrencyExportPreferences(String prefix) {
+        this.prefix = prefix.toUpperCase();
+    }
+
+    public void restorePreferences(Activity activity, SharedPreferences preferences) {
+        Spinner decimals = (Spinner) activity.findViewById(R.id.spinnerDecimals);
+        Spinner decimalSeparators = (Spinner) activity.findViewById(R.id.spinnerDecimalSeparators);
+        Spinner groupSeparators = (Spinner) activity.findViewById(R.id.spinnerGroupSeparators);
+        decimals.setSelection(preferences.getInt(prefix(EXPORT_DECIMALS), 0));
+        decimalSeparators.setSelection(preferences.getInt(prefix(EXPORT_DECIMAL_SEPARATOR), 0));
+        groupSeparators.setSelection(preferences.getInt(prefix(EXPORT_GROUP_SEPARATOR), 3));
+    }
+
+    public void savePreferences(Activity activity, SharedPreferences.Editor editor) {
+        Spinner decimals = (Spinner) activity.findViewById(R.id.spinnerDecimals);
+        Spinner decimalSeparators = (Spinner) activity.findViewById(R.id.spinnerDecimalSeparators);
+        Spinner groupSeparators = (Spinner) activity.findViewById(R.id.spinnerGroupSeparators);
+        editor.putInt(prefix(EXPORT_DECIMALS), decimals.getSelectedItemPosition());
+        editor.putInt(prefix(EXPORT_DECIMAL_SEPARATOR), decimalSeparators.getSelectedItemPosition());
+        editor.putInt(prefix(EXPORT_GROUP_SEPARATOR), groupSeparators.getSelectedItemPosition());
+    }
+
     public void updateIntentFromUI(Activity activity, Intent data) {
-        Spinner decimals = (Spinner)activity.findViewById(R.id.spinnerDecimals);
-        Spinner decimalSeparators = (Spinner)activity.findViewById(R.id.spinnerDecimalSeparators);
-        Spinner groupSeparators = (Spinner)activity.findViewById(R.id.spinnerGroupSeparators);
-        data.putExtra(prefix(EXPORT_DECIMALS), 2-decimals.getSelectedItemPosition());
+        Spinner decimals = (Spinner) activity.findViewById(R.id.spinnerDecimals);
+        Spinner decimalSeparators = (Spinner) activity.findViewById(R.id.spinnerDecimalSeparators);
+        Spinner groupSeparators = (Spinner) activity.findViewById(R.id.spinnerGroupSeparators);
+        data.putExtra(prefix(EXPORT_DECIMALS), 2 - decimals.getSelectedItemPosition());
         data.putExtra(prefix(EXPORT_DECIMAL_SEPARATOR), decimalSeparators.getSelectedItem().toString());
         data.putExtra(prefix(EXPORT_GROUP_SEPARATOR), groupSeparators.getSelectedItem().toString());
     }
@@ -56,25 +76,7 @@ public class CurrencyExportPreferences {
     }
 
     private String prefix(String s) {
-        return prefix+"_"+s;
-    }
-
-    public void savePreferences(Activity activity, SharedPreferences.Editor editor) {
-        Spinner decimals = (Spinner)activity.findViewById(R.id.spinnerDecimals);
-        Spinner decimalSeparators = (Spinner)activity.findViewById(R.id.spinnerDecimalSeparators);
-        Spinner groupSeparators = (Spinner)activity.findViewById(R.id.spinnerGroupSeparators);
-		editor.putInt(prefix(EXPORT_DECIMALS), decimals.getSelectedItemPosition());
-		editor.putInt(prefix(EXPORT_DECIMAL_SEPARATOR), decimalSeparators.getSelectedItemPosition());
-		editor.putInt(prefix(EXPORT_GROUP_SEPARATOR), groupSeparators.getSelectedItemPosition());
-    }
-
-    public void restorePreferences(Activity activity, SharedPreferences preferences) {
-        Spinner decimals = (Spinner)activity.findViewById(R.id.spinnerDecimals);
-        Spinner decimalSeparators = (Spinner)activity.findViewById(R.id.spinnerDecimalSeparators);
-        Spinner groupSeparators = (Spinner)activity.findViewById(R.id.spinnerGroupSeparators);
-		decimals.setSelection(preferences.getInt(prefix(EXPORT_DECIMALS), 0));
-		decimalSeparators.setSelection(preferences.getInt(prefix(EXPORT_DECIMAL_SEPARATOR), 0));
-		groupSeparators.setSelection(preferences.getInt(prefix(EXPORT_GROUP_SEPARATOR), 3));
+        return prefix + "_" + s;
     }
 
 }

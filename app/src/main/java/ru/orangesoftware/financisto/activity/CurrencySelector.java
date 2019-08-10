@@ -13,17 +13,16 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.util.Log;
 import android.widget.Toast;
-import ru.orangesoftware.financisto.R;
-import ru.orangesoftware.financisto.db.MyEntityManager;
-import ru.orangesoftware.financisto.export.csv.Csv;
-import ru.orangesoftware.financisto.model.Currency;
-import ru.orangesoftware.financisto.utils.CurrencyCache;
-
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import ru.orangesoftware.financisto.R;
+import ru.orangesoftware.financisto.db.MyEntityManager;
+import ru.orangesoftware.financisto.export.csv.Csv;
+import ru.orangesoftware.financisto.model.Currency;
+import ru.orangesoftware.financisto.utils.CurrencyCache;
 
 /**
  * Created by IntelliJ IDEA.
@@ -33,12 +32,16 @@ import java.util.List;
 public class CurrencySelector {
 
     public static interface OnCurrencyCreatedListener {
+
         void onCreated(long currencyId);
     }
 
     private final Context context;
-    private final MyEntityManager em;
+
     private final List<List<String>> currencies;
+
+    private final MyEntityManager em;
+
     private final OnCurrencyCreatedListener listener;
 
     private int selectedCurrency = 0;
@@ -48,6 +51,15 @@ public class CurrencySelector {
         this.em = em;
         this.listener = listener;
         this.currencies = readCurrenciesFromAsset();
+    }
+
+    public void addSelectedCurrency(int selectedCurrency) {
+        if (selectedCurrency > 0 && selectedCurrency <= currencies.size()) {
+            List<String> c = currencies.get(selectedCurrency - 1);
+            addSelectedCurrency(c);
+        } else {
+            listener.onCreated(0);
+        }
     }
 
     public void show() {
@@ -71,15 +83,6 @@ public class CurrencySelector {
                 .show();
     }
 
-    public void addSelectedCurrency(int selectedCurrency) {
-        if (selectedCurrency > 0 && selectedCurrency <= currencies.size()) {
-            List<String> c = currencies.get(selectedCurrency-1);
-            addSelectedCurrency(c);
-        } else {
-            listener.onCreated(0);
-        }
-    }
-
     private void addSelectedCurrency(List<String> list) {
         Currency c = new Currency();
         c.name = list.get(0);
@@ -94,8 +97,15 @@ public class CurrencySelector {
         listener.onCreated(c.id);
     }
 
-    private boolean isTheFirstCurrencyAdded() {
-        return em.getAllCurrenciesList().isEmpty();
+    private String[] createItemsList(List<List<String>> currencies) {
+        int size = currencies.size();
+        String[] items = new String[size + 1];
+        items[0] = context.getString(R.string.new_currency);
+        for (int i = 0; i < size; i++) {
+            List<String> c = currencies.get(i);
+            items[i + 1] = c.get(0) + " (" + c.get(1) + ")";
+        }
+        return items;
     }
 
     private String decodeSeparator(String s) {
@@ -108,6 +118,10 @@ public class CurrencySelector {
         } else {
             return "''";
         }
+    }
+
+    private boolean isTheFirstCurrencyAdded() {
+        return em.getAllCurrenciesList().isEmpty();
     }
 
     private List<List<String>> readCurrenciesFromAsset() {
@@ -131,17 +145,6 @@ public class CurrencySelector {
             Toast.makeText(context, e.getClass() + ":" + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
         return Collections.emptyList();
-    }
-
-    private String[] createItemsList(List<List<String>> currencies) {
-        int size = currencies.size();
-        String[] items = new String[size+1];
-        items[0] = context.getString(R.string.new_currency);
-        for (int i=0; i<size; i++) {
-            List<String> c = currencies.get(i);
-            items[i+1] = c.get(0)+" ("+c.get(1)+")";
-        }
-        return items;
     }
 
 

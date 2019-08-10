@@ -9,7 +9,6 @@
 package ru.orangesoftware.financisto.export;
 
 import android.util.Log;
-
 import java.io.ByteArrayOutputStream;
 
 /**
@@ -19,6 +18,8 @@ import java.io.ByteArrayOutputStream;
  */
 public abstract class AbstractExportTest<T extends Export, O> extends AbstractImportExportTest {
 
+    protected abstract T createExport(O options);
+
     protected String exportAsString(O options) throws Exception {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         T export = createExport(options);
@@ -27,7 +28,5 @@ public abstract class AbstractExportTest<T extends Export, O> extends AbstractIm
         Log.d("Export", s);
         return s;
     }
-
-    protected abstract T createExport(O options);
 
 }

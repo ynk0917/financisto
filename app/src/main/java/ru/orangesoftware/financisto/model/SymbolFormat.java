@@ -41,6 +41,8 @@ public enum SymbolFormat {
         }
     };
 
+    public abstract void appendSymbol(StringBuilder sb, String symbol);
+
     private static int getInsertIndex(StringBuilder sb) {
         if (sb.length() > 0) {
             char c = sb.charAt(0);
@@ -48,7 +50,5 @@ public enum SymbolFormat {
         }
         return 0;
     }
-
-    public abstract void appendSymbol(StringBuilder sb, String symbol);
 
 }

@@ -4,18 +4,19 @@
  * are made available under the terms of the GNU Public License v2.0
  * which accompanies this distribution, and is available at
  * http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * 
+ *
  * Contributors:
  *     Denis Solonenko - initial API and implementation
  ******************************************************************************/
 package ru.orangesoftware.financisto.model;
+
+import static ru.orangesoftware.financisto.db.DatabaseHelper.SMS_TEMPLATES_TABLE;
 
 import android.database.Cursor;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 import javax.persistence.Transient;
-import static ru.orangesoftware.financisto.db.DatabaseHelper.SMS_TEMPLATES_TABLE;
 import ru.orangesoftware.financisto.db.DatabaseHelper.SmsTemplateColumns;
 import ru.orangesoftware.financisto.db.DatabaseHelper.SmsTemplateListColumns;
 
@@ -23,23 +24,23 @@ import ru.orangesoftware.financisto.db.DatabaseHelper.SmsTemplateListColumns;
 @Table(name = SMS_TEMPLATES_TABLE)
 public class SmsTemplate extends MyEntity {
 
-    @Column(name = "template")
-    public String template;
+    @Column(name = "account_id")
+    public long accountId = -1;
 
     @Column(name = "category_id")
     public long categoryId;
 
-    @Column(name = "account_id")
-    public long accountId = -1;
-
-    @Column(name = "is_income")
-    public boolean isIncome;
+    @Transient
+    public int categoryLevel;
 
     @Transient
     public String categoryName;
 
-    @Transient
-    public int categoryLevel;
+    @Column(name = "is_income")
+    public boolean isIncome;
+
+    @Column(name = "template")
+    public String template;
 
     public static SmsTemplate fromCursor(Cursor c) {
         SmsTemplate t = new SmsTemplate();

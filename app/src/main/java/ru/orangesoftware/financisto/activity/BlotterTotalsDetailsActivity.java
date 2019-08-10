@@ -10,16 +10,27 @@ package ru.orangesoftware.financisto.activity;
 
 import android.content.Intent;
 import ru.orangesoftware.financisto.R;
-import ru.orangesoftware.financisto.blotter.*;
+import ru.orangesoftware.financisto.blotter.AccountTotalCalculationTask;
+import ru.orangesoftware.financisto.blotter.BlotterFilter;
+import ru.orangesoftware.financisto.blotter.BlotterTotalCalculationTask;
+import ru.orangesoftware.financisto.blotter.TotalCalculationTask;
 import ru.orangesoftware.financisto.filter.WhereFilter;
 import ru.orangesoftware.financisto.model.Total;
 
-public class BlotterTotalsDetailsActivity extends AbstractTotalsDetailsActivity  {
+public class BlotterTotalsDetailsActivity extends AbstractTotalsDetailsActivity {
 
     private volatile TotalCalculationTask totalCalculationTask;
 
     public BlotterTotalsDetailsActivity() {
         super(R.string.blotter_total_in_currency);
+    }
+
+    protected Total getTotalInHomeCurrency() {
+        return totalCalculationTask.getTotalInHomeCurrency();
+    }
+
+    protected Total[] getTotals() {
+        return totalCalculationTask.getTotals();
     }
 
     @Override
@@ -44,14 +55,6 @@ public class BlotterTotalsDetailsActivity extends AbstractTotalsDetailsActivity 
         } else {
             return new BlotterTotalCalculationTask(this, db, filter, null);
         }
-    }
-
-    protected Total getTotalInHomeCurrency() {
-        return totalCalculationTask.getTotalInHomeCurrency();
-    }
-
-    protected Total[] getTotals() {
-        return totalCalculationTask.getTotals();
     }
 
 }

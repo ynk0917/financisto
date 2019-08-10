@@ -10,6 +10,8 @@
  ******************************************************************************/
 package ru.orangesoftware.financisto.adapter;
 
+import static ru.orangesoftware.financisto.utils.TransactionTitleUtils.generateTransactionTitle;
+
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -21,34 +23,75 @@ import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.model.Currency;
 import ru.orangesoftware.financisto.model.TransactionInfo;
 import ru.orangesoftware.financisto.utils.Utils;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
-import static ru.orangesoftware.financisto.utils.TransactionTitleUtils.generateTransactionTitle;
-
 public class ScheduledListAdapter extends BaseAdapter {
 
-    private final StringBuilder sb = new StringBuilder();
-    private final Date dt = new Date();
-    private final int transferColor;
-    private final int scheduledColor;
-    private final Drawable icBlotterIncome;
-    private final Drawable icBlotterExpense;
-    private final Drawable icBlotterTransfer;
-    private final Utils u;
+    private static class Holder {
+
+        TextView bottomView;
+
+        TextView centerView;
+
+        ImageView iconView;
+
+        TextView indicator;
+
+        RelativeLayout layout;
+
+        TextView rightCenterView;
+
+        TextView topView;
+
+        public static Holder create(View view) {
+            Holder v = new Holder();
+            v.layout = (RelativeLayout) view.findViewById(R.id.layout);
+            v.indicator = (TextView) view.findViewById(R.id.indicator);
+            v.topView = (TextView) view.findViewById(R.id.top);
+            v.centerView = (TextView) view.findViewById(R.id.center);
+            v.bottomView = (TextView) view.findViewById(R.id.bottom);
+            v.rightCenterView = (TextView) view.findViewById(R.id.right_center);
+            v.iconView = (ImageView) view.findViewById(R.id.right_top);
+            removeRightView(view, v);
+            view.setTag(v);
+            return v;
+        }
+
+        private static void removeRightView(View view, Holder v) {
+            view.findViewById(R.id.right).setVisibility(View.GONE);
+        }
+
+    }
 
     private final Context context;
+
+    private final Date dt = new Date();
+
+    private final Drawable icBlotterExpense;
+
+    private final Drawable icBlotterIncome;
+
+    private final Drawable icBlotterTransfer;
+
     private final LayoutInflater inflater;
 
     private Date now = new Date();
+
+    private final StringBuilder sb = new StringBuilder();
+
+    private final int scheduledColor;
+
     private List<TransactionInfo> transactions;
+
+    private final int transferColor;
+
+    private final Utils u;
 
     public ScheduledListAdapter(Context context, List<TransactionInfo> transactions) {
         this.context = context;
@@ -60,12 +103,6 @@ public class ScheduledListAdapter extends BaseAdapter {
         this.icBlotterTransfer = context.getResources().getDrawable(R.drawable.ic_blotter_transfer);
         this.u = new Utils(context);
         this.transactions = transactions;
-    }
-
-    public void setTransactions(ArrayList<TransactionInfo> transactions) {
-        this.now = new Date();
-        this.transactions = transactions;
-        notifyDataSetChanged();
     }
 
     @Override
@@ -176,34 +213,10 @@ public class ScheduledListAdapter extends BaseAdapter {
         return convertView;
     }
 
-    private static class Holder {
-        RelativeLayout layout;
-
-        TextView indicator;
-        TextView topView;
-        TextView centerView;
-        TextView bottomView;
-        TextView rightCenterView;
-        ImageView iconView;
-
-        public static Holder create(View view) {
-            Holder v = new Holder();
-            v.layout = (RelativeLayout) view.findViewById(R.id.layout);
-            v.indicator = (TextView) view.findViewById(R.id.indicator);
-            v.topView = (TextView) view.findViewById(R.id.top);
-            v.centerView = (TextView) view.findViewById(R.id.center);
-            v.bottomView = (TextView) view.findViewById(R.id.bottom);
-            v.rightCenterView = (TextView) view.findViewById(R.id.right_center);
-            v.iconView = (ImageView) view.findViewById(R.id.right_top);
-            removeRightView(view, v);
-            view.setTag(v);
-            return v;
-        }
-
-        private static void removeRightView(View view, Holder v) {
-            view.findViewById(R.id.right).setVisibility(View.GONE);
-        }
-
+    public void setTransactions(ArrayList<TransactionInfo> transactions) {
+        this.now = new Date();
+        this.transactions = transactions;
+        notifyDataSetChanged();
     }
 
 }

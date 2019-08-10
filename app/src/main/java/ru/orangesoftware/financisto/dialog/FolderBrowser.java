@@ -8,6 +8,8 @@
 
 package ru.orangesoftware.financisto.dialog;
 
+import static ru.orangesoftware.financisto.utils.Utils.text;
+
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ListActivity;
@@ -15,30 +17,60 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.*;
-import ru.orangesoftware.financisto.R;
-
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListAdapter;
+import android.widget.ListView;
+import android.widget.Toast;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static ru.orangesoftware.financisto.utils.Utils.text;
+import ru.orangesoftware.financisto.R;
 
 /**
  * Created by IntelliJ IDEA.
  * User: denis.solonenko
  * Date: 12/23/11 12:53 AM
- *
  */
 public class FolderBrowser extends ListActivity {
 
+    private static class FileItem {
+
+        private final File file;
+
+        private FileItem(File file) {
+            this.file = file;
+        }
+
+        @Override
+        public String toString() {
+            return file.getName();
+        }
+
+    }
+
+    private static class OnLevelUp extends FileItem {
+
+        private OnLevelUp(File file) {
+            super(file);
+        }
+
+        @Override
+        public String toString() {
+            return "..";
+        }
+    }
+
     public static final String PATH = "PATH";
-    
+
+    private Button createButton;
+
     private final List<FileItem> files = new ArrayList<FileItem>();
 
     private Button selectButton;
-    private Button createButton;
+
     private File selectedFolder;
 
     @Override
@@ -47,7 +79,7 @@ public class FolderBrowser extends ListActivity {
 
         setContentView(R.layout.folder_browser);
 
-        selectButton = (Button)findViewById(R.id.selectButton);
+        selectButton = (Button) findViewById(R.id.selectButton);
         selectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -58,17 +90,44 @@ public class FolderBrowser extends ListActivity {
             }
         });
 
-        createButton = (Button)findViewById(R.id.createButton);
+        createButton = (Button) findViewById(R.id.createButton);
         createButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 createNewFolder();
             }
         });
-        
+
         if (!browseToCurrentFolder()) {
             browseToRoot();
         }
+    }
+
+    @Override
+    protected void onListItemClick(ListView l, View v, int position, long id) {
+        super.onListItemClick(l, v, position, id);
+        FileItem selected = files.get(position);
+        browseTo(selected.file);
+    }
+
+    private void browse(File current) {
+        File[] files = current.listFiles();
+        if (files != null) {
+            Arrays.sort(files);
+            for (File file : files) {
+                if (isWritableDirectory(file)) {
+                    this.files.add(new FileItem(file));
+                }
+            }
+        }
+    }
+
+    private void browseTo(File current) {
+        files.clear();
+        upOneLevel(current);
+        browse(current);
+        setAdapter();
+        selectCurrentFolder(current);
     }
 
     private boolean browseToCurrentFolder() {
@@ -81,6 +140,10 @@ public class FolderBrowser extends ListActivity {
             }
         }
         return false;
+    }
+
+    private void browseToRoot() {
+        browseTo(new File("/"));
     }
 
     private void createNewFolder() {
@@ -104,7 +167,7 @@ public class FolderBrowser extends ListActivity {
                 .create();
         d.show();
     }
-    
+
     private void createNewFolder(String name) {
         boolean result = false;
         try {
@@ -119,16 +182,8 @@ public class FolderBrowser extends ListActivity {
         }
     }
 
-    private void browseToRoot() {
-        browseTo(new File("/"));
-    }
-
-    private void browseTo(File current) {
-        files.clear();
-        upOneLevel(current);
-        browse(current);
-        setAdapter();
-        selectCurrentFolder(current);
+    private boolean isWritableDirectory(File file) {
+        return file.isDirectory() && file.canRead() && file.canWrite();
     }
 
     private void selectCurrentFolder(File current) {
@@ -139,64 +194,15 @@ public class FolderBrowser extends ListActivity {
         setTitle(current.getAbsolutePath());
     }
 
-    private void upOneLevel(File current) {
-        File parent = current.getParentFile();
-        if (parent != null) {
-            files.add(new OnLevelUp(parent));
-        }
-    }
-
-    private void browse(File current) {
-        File[] files = current.listFiles();
-        if (files != null) {
-            Arrays.sort(files);
-            for (File file : files) {
-                if (isWritableDirectory(file)) {
-                    this.files.add(new FileItem(file));
-                }
-            }
-        }
-    }
-
-    private boolean isWritableDirectory(File file) {
-        return file.isDirectory() && file.canRead() && file.canWrite();
-    }
-
     private void setAdapter() {
         ListAdapter adapter = new ArrayAdapter<FileItem>(this, android.R.layout.simple_list_item_1, files);
         setListAdapter(adapter);
     }
 
-    @Override
-    protected void onListItemClick(ListView l, View v, int position, long id) {
-        super.onListItemClick(l, v, position, id);
-        FileItem selected = files.get(position);
-        browseTo(selected.file);
-    }
-    
-    private static class FileItem {
-        private final File file;
-
-        private FileItem(File file) {
-            this.file = file;
-        }
-
-        @Override
-        public String toString() {
-            return file.getName();
-        }
-
-    }
-
-    private static class OnLevelUp extends FileItem {
-
-        private OnLevelUp(File file) {
-            super(file);
-        }
-
-        @Override
-        public String toString() {
-            return "..";
+    private void upOneLevel(File current) {
+        File parent = current.getParentFile();
+        if (parent != null) {
+            files.add(new OnLevelUp(parent));
         }
     }
 

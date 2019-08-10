@@ -1,5 +1,10 @@
 package ru.orangesoftware.financisto.activity;
 
+import static android.Manifest.permission.RECEIVE_SMS;
+import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
+import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermissions;
+import static ru.orangesoftware.financisto.utils.EnumUtils.showPickOneDialog;
+
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -10,9 +15,7 @@ import android.os.AsyncTask;
 import android.support.v4.content.FileProvider;
 import android.widget.ListAdapter;
 import android.widget.Toast;
-
 import java.io.File;
-
 import ru.orangesoftware.financisto.BuildConfig;
 import ru.orangesoftware.financisto.R;
 import ru.orangesoftware.financisto.backup.Backup;
@@ -35,17 +38,13 @@ import ru.orangesoftware.financisto.utils.ExecutableEntityEnum;
 import ru.orangesoftware.financisto.utils.IntegrityFix;
 import ru.orangesoftware.financisto.utils.SummaryEntityEnum;
 
-import static android.Manifest.permission.RECEIVE_SMS;
-import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermission;
-import static ru.orangesoftware.financisto.activity.RequestPermission.isRequestingPermissions;
-import static ru.orangesoftware.financisto.utils.EnumUtils.showPickOneDialog;
-
 public enum MenuListItem implements SummaryEntityEnum {
 
     MENU_PREFERENCES(R.string.preferences, R.string.preferences_summary, R.drawable.drawer_action_preferences) {
         @Override
         public void call(Activity activity) {
-            activity.startActivityForResult(new Intent(activity, PreferencesActivity.class), ACTIVITY_CHANGE_PREFERENCES);
+            activity.startActivityForResult(new Intent(activity, PreferencesActivity.class),
+                    ACTIVITY_CHANGE_PREFERENCES);
         }
     },
     MENU_ENTITIES(R.string.entities, R.string.entities_summary, R.drawable.drawer_action_entities) {
@@ -73,7 +72,8 @@ public enum MenuListItem implements SummaryEntityEnum {
             if (isRequestingPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
                 return;
             }
-            ProgressDialog d = ProgressDialog.show(activity, null, activity.getString(R.string.backup_database_inprogress), true);
+            ProgressDialog d = ProgressDialog
+                    .show(activity, null, activity.getString(R.string.backup_database_inprogress), true);
             new BackupExportTask(activity, d, true).execute();
         }
     },
@@ -89,7 +89,9 @@ public enum MenuListItem implements SummaryEntityEnum {
                     .setTitle(R.string.restore_database)
                     .setPositiveButton(R.string.restore, (dialog, which) -> {
                         if (selectedBackupFile[0] != null) {
-                            ProgressDialog d = ProgressDialog.show(activity, null, activity.getString(R.string.restore_database_inprogress), true);
+                            ProgressDialog d = ProgressDialog
+                                    .show(activity, null, activity.getString(R.string.restore_database_inprogress),
+                                            true);
                             new BackupImportTask(activity, d).execute(selectedBackupFile);
                         }
                     })
@@ -101,7 +103,8 @@ public enum MenuListItem implements SummaryEntityEnum {
                     .show();
         }
     },
-    GOOGLE_DRIVE_BACKUP(R.string.backup_database_online_google_drive, R.string.backup_database_online_google_drive_summary, R.drawable.actionbar_google_drive) {
+    GOOGLE_DRIVE_BACKUP(R.string.backup_database_online_google_drive,
+            R.string.backup_database_online_google_drive_summary, R.drawable.actionbar_google_drive) {
         @Override
         public void call(Activity activity) {
             if (isRequestingPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
@@ -110,7 +113,8 @@ public enum MenuListItem implements SummaryEntityEnum {
             GreenRobotBus_.getInstance_(activity).post(new MenuListActivity.StartDriveBackup());
         }
     },
-    GOOGLE_DRIVE_RESTORE(R.string.restore_database_online_google_drive, R.string.restore_database_online_google_drive_summary, R.drawable.actionbar_google_drive) {
+    GOOGLE_DRIVE_RESTORE(R.string.restore_database_online_google_drive,
+            R.string.restore_database_online_google_drive_summary, R.drawable.actionbar_google_drive) {
         @Override
         public void call(Activity activity) {
             if (isRequestingPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
@@ -119,7 +123,8 @@ public enum MenuListItem implements SummaryEntityEnum {
             GreenRobotBus_.getInstance_(activity).post(new MenuListActivity.StartDriveRestore());
         }
     },
-    DROPBOX_BACKUP(R.string.backup_database_online_dropbox, R.string.backup_database_online_dropbox_summary, R.drawable.actionbar_dropbox) {
+    DROPBOX_BACKUP(R.string.backup_database_online_dropbox, R.string.backup_database_online_dropbox_summary,
+            R.drawable.actionbar_dropbox) {
         @Override
         public void call(Activity activity) {
             if (isRequestingPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
@@ -128,7 +133,8 @@ public enum MenuListItem implements SummaryEntityEnum {
             GreenRobotBus_.getInstance_(activity).post(new MenuListActivity.StartDropboxBackup());
         }
     },
-    DROPBOX_RESTORE(R.string.restore_database_online_dropbox, R.string.restore_database_online_dropbox_summary, R.drawable.actionbar_dropbox) {
+    DROPBOX_RESTORE(R.string.restore_database_online_dropbox, R.string.restore_database_online_dropbox_summary,
+            R.drawable.actionbar_dropbox) {
         @Override
         public void call(Activity activity) {
             if (isRequestingPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
@@ -143,7 +149,8 @@ public enum MenuListItem implements SummaryEntityEnum {
             if (isRequestingPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
                 return;
             }
-            ProgressDialog d = ProgressDialog.show(activity, null, activity.getString(R.string.backup_database_inprogress), true);
+            ProgressDialog d = ProgressDialog
+                    .show(activity, null, activity.getString(R.string.backup_database_inprogress), true);
             final BackupExportTask t = new BackupExportTask(activity, d, false);
             t.setShowResultMessage(false);
             t.setListener(result -> {
@@ -153,7 +160,8 @@ public enum MenuListItem implements SummaryEntityEnum {
                 Uri backupFileUri = FileProvider.getUriForFile(activity, BuildConfig.APPLICATION_ID, file);
                 intent.putExtra(Intent.EXTRA_STREAM, backupFileUri);
                 intent.setType("text/plain");
-                activity.startActivity(Intent.createChooser(intent, activity.getString(R.string.backup_database_to_title)));
+                activity.startActivity(
+                        Intent.createChooser(intent, activity.getString(R.string.backup_database_to_title)));
             });
             t.execute((String[]) null);
         }
@@ -173,7 +181,8 @@ public enum MenuListItem implements SummaryEntityEnum {
             activity.startActivity(new Intent(activity, MassOpActivity.class));
         }
     },
-    MENU_SCHEDULED_TRANSACTIONS(R.string.scheduled_transactions, R.string.scheduled_transactions_summary, R.drawable.actionbar_calendar) {
+    MENU_SCHEDULED_TRANSACTIONS(R.string.scheduled_transactions, R.string.scheduled_transactions_summary,
+            R.drawable.actionbar_calendar) {
         @Override
         public void call(Activity activity) {
             activity.startActivity(new Intent(activity, ScheduledListActivity.class));
@@ -218,38 +227,38 @@ public enum MenuListItem implements SummaryEntityEnum {
         }
     };
 
-    public final int titleId;
-    public final int summaryId;
-    public final int iconId;
+    private static class IntegrityFixTask extends AsyncTask<Void, Void, Void> {
 
-    MenuListItem(int titleId, int summaryId, int iconId) {
-        this.titleId = titleId;
-        this.summaryId = summaryId;
-        this.iconId = iconId;
+        private final Activity context;
+
+        private ProgressDialog progressDialog;
+
+        IntegrityFixTask(Activity context) {
+            this.context = context;
+        }
+
+        @Override
+        protected Void doInBackground(Void... objects) {
+            DatabaseAdapter db = new DatabaseAdapter(context);
+            new IntegrityFix(db).fix();
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void o) {
+            if (context instanceof MainActivity) {
+                ((MainActivity) context).refreshCurrentTab();
+            }
+            progressDialog.dismiss();
+        }
+
+        @Override
+        protected void onPreExecute() {
+            progressDialog = ProgressDialog
+                    .show(context, null, context.getString(R.string.integrity_fix_in_progress), true);
+            progressDialog.show();
+        }
     }
-
-    @Override
-    public int getTitleId() {
-        return titleId;
-    }
-
-    @Override
-    public int getSummaryId() {
-        return summaryId;
-    }
-
-    @Override
-    public int getIconId() {
-        return iconId;
-    }
-
-    public static final int ACTIVITY_CSV_EXPORT = 2;
-    public static final int ACTIVITY_QIF_EXPORT = 3;
-    public static final int ACTIVITY_CSV_IMPORT = 4;
-    public static final int ACTIVITY_QIF_IMPORT = 5;
-    public static final int ACTIVITY_CHANGE_PREFERENCES = 6;
-
-    public abstract void call(Activity activity);
 
     private enum MenuEntities implements EntityEnum {
 
@@ -261,10 +270,13 @@ public enum MenuListItem implements SummaryEntityEnum {
         PROJECTS(R.string.projects, R.drawable.ic_action_gear, ProjectListActivity.class),
         LOCATIONS(R.string.locations, R.drawable.ic_action_location_2, LocationsListActivity.class);
 
-        private final int titleId;
-        private final int iconId;
         private final Class<?> actitivyClass;
+
+        private final int iconId;
+
         private final String[] permissions;
+
+        private final int titleId;
 
         MenuEntities(int titleId, int iconId, Class<?> activityClass) {
             this(titleId, iconId, activityClass, (String[]) null);
@@ -277,9 +289,8 @@ public enum MenuListItem implements SummaryEntityEnum {
             this.permissions = permissions;
         }
 
-        @Override
-        public int getTitleId() {
-            return titleId;
+        public Class<?> getActivityClass() {
+            return actitivyClass;
         }
 
         @Override
@@ -287,12 +298,13 @@ public enum MenuListItem implements SummaryEntityEnum {
             return iconId;
         }
 
-        public Class<?> getActivityClass() {
-            return actitivyClass;
-        }
-
         public String[] getPermissions() {
             return permissions;
+        }
+
+        @Override
+        public int getTitleId() {
+            return titleId;
         }
     }
 
@@ -327,8 +339,9 @@ public enum MenuListItem implements SummaryEntityEnum {
             }
         };
 
-        private final int titleId;
         private final int iconId;
+
+        private final int titleId;
 
         ImportExportEntities(int titleId, int iconId) {
             this.titleId = titleId;
@@ -336,66 +349,78 @@ public enum MenuListItem implements SummaryEntityEnum {
         }
 
         @Override
-        public int getTitleId() {
-            return titleId;
-        }
-
-        @Override
         public int getIconId() {
             return iconId;
         }
 
+        @Override
+        public int getTitleId() {
+            return titleId;
+        }
+
     }
 
+    public static final int ACTIVITY_CSV_EXPORT = 2;
+
+    public static final int ACTIVITY_QIF_EXPORT = 3;
+
+    public static final int ACTIVITY_CSV_IMPORT = 4;
+
+    public static final int ACTIVITY_QIF_IMPORT = 5;
+
+    public static final int ACTIVITY_CHANGE_PREFERENCES = 6;
+
+    public final int iconId;
+
+    public final int summaryId;
+
+    public final int titleId;
+
     public static void doCsvExport(Activity activity, CsvExportOptions options) {
-        ProgressDialog progressDialog = ProgressDialog.show(activity, null, activity.getString(R.string.csv_export_inprogress), true);
+        ProgressDialog progressDialog = ProgressDialog
+                .show(activity, null, activity.getString(R.string.csv_export_inprogress), true);
         new CsvExportTask(activity, progressDialog, options).execute();
     }
 
     public static void doCsvImport(Activity activity, CsvImportOptions options) {
-        ProgressDialog progressDialog = ProgressDialog.show(activity, null, activity.getString(R.string.csv_import_inprogress), true);
+        ProgressDialog progressDialog = ProgressDialog
+                .show(activity, null, activity.getString(R.string.csv_import_inprogress), true);
         new CsvImportTask(activity, progressDialog, options).execute();
     }
 
     public static void doQifExport(Activity activity, QifExportOptions options) {
-        ProgressDialog progressDialog = ProgressDialog.show(activity, null, activity.getString(R.string.qif_export_inprogress), true);
+        ProgressDialog progressDialog = ProgressDialog
+                .show(activity, null, activity.getString(R.string.qif_export_inprogress), true);
         new QifExportTask(activity, progressDialog, options).execute();
     }
 
     public static void doQifImport(Activity activity, QifImportOptions options) {
-        ProgressDialog progressDialog = ProgressDialog.show(activity, null, activity.getString(R.string.qif_import_inprogress), true);
+        ProgressDialog progressDialog = ProgressDialog
+                .show(activity, null, activity.getString(R.string.qif_import_inprogress), true);
         new QifImportTask(activity, progressDialog, options).execute();
     }
 
-    private static class IntegrityFixTask extends AsyncTask<Void, Void, Void> {
+    MenuListItem(int titleId, int summaryId, int iconId) {
+        this.titleId = titleId;
+        this.summaryId = summaryId;
+        this.iconId = iconId;
+    }
 
-        private final Activity context;
-        private ProgressDialog progressDialog;
+    public abstract void call(Activity activity);
 
-        IntegrityFixTask(Activity context) {
-            this.context = context;
-        }
+    @Override
+    public int getIconId() {
+        return iconId;
+    }
 
-        @Override
-        protected void onPreExecute() {
-            progressDialog = ProgressDialog.show(context, null, context.getString(R.string.integrity_fix_in_progress), true);
-            progressDialog.show();
-        }
+    @Override
+    public int getSummaryId() {
+        return summaryId;
+    }
 
-        @Override
-        protected void onPostExecute(Void o) {
-            if (context instanceof MainActivity) {
-                ((MainActivity) context).refreshCurrentTab();
-            }
-            progressDialog.dismiss();
-        }
-
-        @Override
-        protected Void doInBackground(Void... objects) {
-            DatabaseAdapter db = new DatabaseAdapter(context);
-            new IntegrityFix(db).fix();
-            return null;
-        }
+    @Override
+    public int getTitleId() {
+        return titleId;
     }
 
 }

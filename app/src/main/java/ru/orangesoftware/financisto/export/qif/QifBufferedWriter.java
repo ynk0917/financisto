@@ -16,17 +16,17 @@ public class QifBufferedWriter {
         this.bw = bw;
     }
 
-    public QifBufferedWriter write(String str) throws IOException {
-        bw.write(str);
-        return this;
+    public void end() throws IOException {
+        bw.write("^\n");
     }
 
     public void newLine() throws IOException {
         bw.write("\n");
     }
 
-    public void end() throws IOException {
-        bw.write("^\n");
+    public QifBufferedWriter write(String str) throws IOException {
+        bw.write(str);
+        return this;
     }
 
     public void writeAccountsHeader() throws IOException {

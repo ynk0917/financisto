@@ -7,3 +7,7 @@
 /classes
 /gen
 *.apk
+.project
+.settings
+.classpath
+*-b
